@@ -6,6 +6,6 @@
 
 - Текст на форме → `LoginTests#shouldShowErrorWhenPasswordIsWrong` (`submitExpectingError`).
 - 401 JSON → `AuthApiTests#loginWithInvalidPassword`.
-- Новый браузерный тест «на 401» / `$("pre")` со статусом — не писать.
+- Новый браузерный тест под HTTP-статус / `$("pre")` — не писать.
 
 Селекторы и точная строка ошибки — RAG (`po-locators`, `test-negative`), не этот ADR.

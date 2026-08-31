@@ -103,5 +103,5 @@ e2e id = история формы. HTTP 401 — в `login-401-api` и в `must_
 - Не принимать `Unauthorized` / `Invalid password` как «почти канон».
 - Не считать `@Step` на методе `*Tests` «более Allure».
 - Не смешивать форму и JSON 401 в одном тесте.
-- Не кодировать HTTP 401 в id e2e-ряда (`login-wrong-password-e2e`, не `login-401-ui`).
+- Не кодировать HTTP-статус в id e2e-ряда.
 - Не считать skip `hallucinate-*` на смоуке дырой; не считать красный 7b на adversarial провалом курса.

@@ -6,7 +6,7 @@
 
 - Селекторы в классе *Tests
 - URL стенда / секреты в Java
-- E2e на JSON-контракт, если место в tests/api (401 логина — api)
+- E2e на JSON-контракт, если место в tests/api (JSON неверного пароля — api)
 - Gradle-task testE2e
 - git commit
 - `@Step` / `Allure.step` в классе *Tests — шаги уже на PO
