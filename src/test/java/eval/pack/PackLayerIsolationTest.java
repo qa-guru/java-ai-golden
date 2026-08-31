@@ -30,7 +30,7 @@ class PackLayerIsolationTest {
     @Test
     @DisplayName("form-negative diet contains the lab-36 chain")
     void formNegativeDietHasExpectingError() {
-        GoldenCase row = row("login-401-ui");
+        GoldenCase row = row("login-wrong-password-e2e");
         String diet = PackFiles.diet(row.expect().rag());
         assertTrue(diet.contains("submitExpectingError"), "UI diet missing submitExpectingError");
         assertTrue(diet.contains("Wrong login or password"), "UI diet missing canon message");

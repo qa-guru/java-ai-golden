@@ -68,7 +68,7 @@ class RetrieverTest {
     @Test
     @DisplayName("polluting po-fluent index steals the form-negative query")
     void pollutingHappyIndexStealsFormNegativeQuery() {
-        String prompt = row("login-401-ui").prompt();
+        String prompt = row("login-wrong-password-e2e").prompt();
         assertFalse(
                 LexicalRetriever.retrieve(prompt).contains("po-fluent"),
                 "clean happy chunk must not enter UI diet");

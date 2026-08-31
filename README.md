@@ -33,6 +33,6 @@ cd projects/autotests-ai-multistack-home/java-ai-golden
 - `LiveGenerationContractTest` — generate → `RagCite` (заголовок с ретривера) → контракт → `Judge`. Галлюцинации только с `-Dadversarial=true`.
 - `RetrieverTest` — jsonl `expect.rag` как оракул лексического ретривера, не как подстановка в промпт.
 - Судья по MODE: негатив формы, happy path, API.
-- Канон: лаборатория 36; JSON — не `Unauthorized`.
+- Канон: лаборатория 36; JSON — не `Unauthorized`. e2e golden id — история формы (`login-wrong-password-e2e`), не HTTP 401.
 
-Красный демо офлайн: `@Step` или `fillAndSubmitForm` в `login-401-ui` фикстуре. Pack: `test-negative` в API-rag или «неуспешный» в `index:` у `po-fluent`. Adversarial live: эхо `Invalid password`, over-refuse селектора.
+Красный демо офлайн: `@Step` или `fillAndSubmitForm` в `login-wrong-password-e2e` фикстуре. Pack: `test-negative` в API-rag или «неуспешный» в `index:` у `po-fluent`. Adversarial live: эхо `Invalid password`, over-refuse селектора.

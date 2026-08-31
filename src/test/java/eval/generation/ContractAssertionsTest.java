@@ -117,10 +117,10 @@ class ContractAssertionsTest {
     }
 
     @Test
-    @DisplayName("recorded login-401-ui fixture still matches tightened contract")
+    @DisplayName("recorded login-wrong-password-e2e fixture still matches tightened contract")
     void recordedUiFixtureStillPasses() {
         GoldenCase row = GoldenReader.read()
-                .filter(c -> "login-401-ui".equals(c.id()))
+                .filter(c -> "login-wrong-password-e2e".equals(c.id()))
                 .findFirst()
                 .orElseThrow();
         assertDoesNotThrow(() -> ContractAssertions.assertMatches(row, GoldenReader.fixture(row.id())));
@@ -132,7 +132,7 @@ class ContractAssertionsTest {
 
     private static GoldenCase uiNegative(List<String> rag, List<String> mustNot) {
         return new GoldenCase(
-                "login-401-ui",
+                "login-wrong-password-e2e",
                 "prompt",
                 new GoldenCase.Expect(
                         "e2e",

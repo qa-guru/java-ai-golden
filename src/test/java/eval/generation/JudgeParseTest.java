@@ -31,7 +31,7 @@ class JudgeParseTest {
     @Test
     void formNegativeMode() {
         GoldenCase row = new GoldenCase(
-                "login-401-ui",
+                "login-wrong-password-e2e",
                 "p",
                 new GoldenCase.Expect(
                         "e2e",

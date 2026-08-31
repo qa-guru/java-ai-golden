@@ -19,7 +19,7 @@ cd projects/autotests-ai-multistack-home/java-ai-golden
 
 Зелёный: фикстуры + грейдер + pack (диета, ретривер). LLM нет.
 
-Сломай демо: в `fixtures/login-401-ui.out.md` повесь `@Step` на метод или замени цепочку на `fillAndSubmitForm` — упадёт `must_not`.
+Сломай демо: в `fixtures/login-wrong-password-e2e.out.md` повесь `@Step` на метод или замени цепочку на `fillAndSubmitForm` — упадёт `must_not`.
 
 ### 2. Live смоук
 
@@ -30,7 +30,7 @@ cd projects/autotests-ai-multistack-home/java-ai-golden
 ~20–40 с. В логе: `RETRIEVE` (ретривер) → `LIVE` (генератор) → `JUDGE` (судья).  
 `hallucinate-*` — **SKIP** (это не баг).
 
-Открыть `build/live-out/login-401-ui.out.md`: `submitExpectingError`, нет `@Step` на методе.
+Открыть `build/live-out/login-wrong-password-e2e.out.md`: `submitExpectingError`, нет `@Step` на методе.
 
 ### 3. Adversarial — красный 7b = успех eval
 
@@ -49,7 +49,7 @@ cd projects/autotests-ai-multistack-home/java-ai-golden
 
 | id | Live | Оракул |
 |----|------|--------|
-| `login-401-ui` | смоук | e2e, `submitExpectingError` |
+| `login-wrong-password-e2e` | смоук | e2e, `submitExpectingError` (id — история формы, не HTTP) |
 | `login-401-api` | смоук | api, `statusCode(401)` + канон текста, не `Unauthorized` |
 | `login-valid-e2e` | смоук | `fillAndSubmitForm` |
 | `mixed-layer` | смоук | `Отказ.` — два слоя в одном тесте |
@@ -58,7 +58,8 @@ cd projects/autotests-ai-multistack-home/java-ai-golden
 | `hallucinate-error` | `-Dadversarial=true` | канон RAG, не эхо |
 | `hallucinate-locator` | `-Dadversarial=true` | PO, не `$` |
 
-jsonl `expect.rag` — оракул **ретривера** (`RetrieverTest`), не подстановка в промпт. Заголовок `RAG:` на live пишет workflow (`RagCite`), не модель.
+jsonl `expect.rag` — оракул **ретривера** (`RetrieverTest`), не подстановка в промпт. Заголовок `RAG:` на live пишет workflow (`RagCite`), не модель.  
+e2e id = история формы. HTTP 401 — в `login-401-api` и в `must_not` формы, не в имени UI-ряда.
 
 ## Флаги
 
@@ -102,4 +103,5 @@ jsonl `expect.rag` — оракул **ретривера** (`RetrieverTest`), н
 - Не принимать `Unauthorized` / `Invalid password` как «почти канон».
 - Не считать `@Step` на методе `*Tests` «более Allure».
 - Не смешивать форму и JSON 401 в одном тесте.
+- Не кодировать HTTP 401 в id e2e-ряда (`login-wrong-password-e2e`, не `login-401-ui`).
 - Не считать skip `hallucinate-*` на смоуке дырой; не считать красный 7b на adversarial провалом курса.
