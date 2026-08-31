@@ -42,6 +42,7 @@ final class WorkflowPrompt {
                     Затем Java-фрагмент с @Layer("…") и class …
                     Негатив на форме: submitExpectingError, не fillAndSubmitForm.
                     401 JSON: поле message = "Wrong login or password", не Unauthorized.
+                    В классе *Tests не ставь @Step и Allure.step — шаги уже на LoginPage.
                     """.formatted("RAG: " + String.join(", ", ids)));
         }
         return String.join("\n\n", parts);

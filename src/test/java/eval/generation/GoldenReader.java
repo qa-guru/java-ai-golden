@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 
-final class GoldenReader {
+public final class GoldenReader {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final String GOLDEN_FILE = "golden-generation.jsonl";
@@ -20,7 +20,7 @@ final class GoldenReader {
     private GoldenReader() {
     }
 
-    static Stream<GoldenCase> read() {
+    public static Stream<GoldenCase> read() {
         List<GoldenCase> rows = new ArrayList<>();
         try {
             for (String line : Files.readAllLines(evalDir().resolve(GOLDEN_FILE), StandardCharsets.UTF_8)) {

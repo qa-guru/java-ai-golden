@@ -1,3 +1,9 @@
+---
+id: cfg-stands
+domain: testing
+adr: 002
+tags: [stands, config]
+---
 # cfg-stands
 
 **id:** `cfg-stands`

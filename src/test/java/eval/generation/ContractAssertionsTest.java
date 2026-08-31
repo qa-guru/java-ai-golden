@@ -69,6 +69,31 @@ class ContractAssertionsTest {
     }
 
     @Test
+    @DisplayName("form-negative: @Step on test method is not PO steps")
+    void formNegativeFailsWhenStepOnTestMethod() {
+        GoldenCase row = uiNegative(
+                List.of("test-negative", "po-locators", "po-step", "cfg-stands"),
+                List.of("fillAndSubmitForm", "statusCode(401)", "@Step"));
+        String out = """
+                RAG: test-negative, po-locators, po-step, cfg-stands
+
+                @Layer("e2e")
+                class LoginTests {
+                    @Test
+                    @Step("Should show error when password is wrong")
+                    void shouldShowErrorWhenPasswordIsWrong() {
+                        loginPage.submitExpectingError()
+                                .shouldHaveErrorMessage("Wrong login or password");
+                    }
+                }
+                """;
+        AssertionFailedError err = assertThrows(
+                AssertionFailedError.class,
+                () -> ContractAssertions.assertMatches(row, out));
+        assertTrue(err.getMessage().contains("@Step"), err.getMessage());
+    }
+
+    @Test
     @DisplayName("recorded login-401-ui fixture still matches tightened contract")
     void recordedUiFixtureStillPasses() {
         GoldenCase row = GoldenReader.read()
@@ -79,6 +104,10 @@ class ContractAssertionsTest {
     }
 
     private static GoldenCase uiNegative(List<String> rag) {
+        return uiNegative(rag, List.of("fillAndSubmitForm", "statusCode(401)"));
+    }
+
+    private static GoldenCase uiNegative(List<String> rag, List<String> mustNot) {
         return new GoldenCase(
                 "login-401-ui",
                 "prompt",
@@ -89,7 +118,7 @@ class ContractAssertionsTest {
                         rag,
                         false,
                         List.of("submitExpectingError", "shouldHaveErrorMessage", "Wrong login or password")),
-                List.of("fillAndSubmitForm", "statusCode(401)"));
+                mustNot);
     }
 
     private static GoldenCase apiNegative() {

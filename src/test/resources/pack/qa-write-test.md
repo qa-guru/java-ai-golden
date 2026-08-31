@@ -9,6 +9,7 @@
 - E2e на JSON-контракт, если место в tests/api (401 логина — api)
 - Gradle-task testE2e
 - git commit
+- `@Step` / `Allure.step` в классе *Tests — шаги уже на PO
 
 ## Якоря
 

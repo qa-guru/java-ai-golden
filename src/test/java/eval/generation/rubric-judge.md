@@ -5,13 +5,13 @@
 ## MODE=form-negative
 
 must: `@Layer("e2e")`, `class LoginTests`, `submitExpectingError`, `shouldHaveErrorMessage`, `Wrong login or password`.  
-must not: `fillAndSubmitForm`, `statusCode(401)`, `Unauthorized`, `Invalid password`.  
+must not: `fillAndSubmitForm`, `statusCode(401)`, `Unauthorized`, `Invalid password`, `@Step` / `Allure.step` на методе теста.  
 Строка `RAG:` — все id из expect.rag, не подмножество.
 
 ## MODE=form-happy
 
 must: `@Layer("e2e")`, `class LoginTests`, `fillAndSubmitForm`, `shouldHaveWelcomeMessage`.  
-must not: `submitExpectingError`.  
+must not: `submitExpectingError`, `@Step` / `Allure.step` на методе теста.  
 `fillAndSubmitForm` здесь обязателен — это не авто-незачёт.
 
 ## MODE=api-negative

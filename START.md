@@ -17,6 +17,7 @@
 | `src/test/java/eval/generation/fixtures/` | записанный эталон (CI) |
 | `src/test/java/eval/generation/rubric-judge.md` | спека LLM-as-a-judge, по MODE |
 | `src/test/java/eval/generation/ContractAssertionsTest.java` | регрессии грейдера: false green, которые уже ловили live |
+| `src/test/java/eval/pack/` | pack как SUT: диета, изоляция слоёв, якоря skill/rules |
 | `src/test/resources/pack/` | диета: rules, skill, RAG, ADR 009, контекст PO |
 
 Два оракула: **programmatic grader** (`ContractAssertions`) → **LLM-as-a-judge** (`Judge`, только live).  
@@ -29,9 +30,9 @@ cd projects/autotests-ai-multistack-home/java-ai-golden
 ./gradlew test
 ```
 
-Ожидание: `GenerationContractTest` + регрессии грейдера, зелёные.
+Ожидание: `GenerationContractTest` + регрессии грейдера + `eval.pack`, зелёные.
 
-Красный демо: в `fixtures/login-401-ui.out.md` заменить цепочку на `fillAndSubmitForm` — упадёт `must_not`.
+Красный демо: в `fixtures/login-401-ui.out.md` повесить `@Step` на метод теста — упадёт `must_not`. Цепочка `fillAndSubmitForm` на негативе — тоже.
 
 ## 3. Полный цикл: generate → contract → judge
 
@@ -60,15 +61,21 @@ cd projects/autotests-ai-multistack-home/java-ai-golden
 
 Зелёный контракт при красном судье = слой угадан, в продукт не влить — успех eval, не баг JUnit.
 
-Live красный при каноничном Java — смотри цитирование RAG (подмножество id) и токен отказа. Это не «модель плохая», это дырявый контракт; такие дыры фиксируем в `ContractAssertionsTest`.
+Live красный при каноничном Java — смотри цитирование RAG (подмножество id), токен отказа и `@Step` на методе теста. Это не «модель плохая», это дырявый контракт; такие дыры фиксируем в `ContractAssertionsTest` и в `eval.pack`.
 
-Ретривер должен совпадать со слоем: в API-кейсе не кладём `test-negative` (там сниппет формы). Диета API — `test-api-layer` + `test-layers`.
+Ретривер должен совпадать со слоем: в API-кейсе не кладём `test-negative` (там сниппет формы). Диета API — `test-api-layer` + `test-layers`. Шаги Allure — на PO, не `@Step` в `*Tests`.
 
 ## 5. Две минуты на занятии
 
-1. `./gradlew test` — golden без LLM.
-2. Live — `login-401-ui.out.md`: `submitExpectingError`, все четыре RAG-id.
+1. `./gradlew test` — golden + pack без LLM.
+2. Live — `login-401-ui.out.md`: `submitExpectingError`, все четыре RAG-id, **нет** `@Step` на методе.
 3. Если live красный — читать assertion message (полный stack в Gradle) и судью. False green больше не цель.
+
+## 6. Pack как продукт
+
+Офлайн, без Ollama. Ломает изоляцию: дописать `test-negative` в rag у `login-401-api`.
+
+Подробности: `src/test/java/eval/pack/README.md`.
 
 ## Не делать
 
@@ -76,5 +83,4 @@ Live красный при каноничном Java — смотри цитир
 - Не ждать, что live вльёт файл в пирамиду.
 - Не гонять live+judge на каждый PR. CI — шаг 2.
 - Не принимать `Unauthorized` / `Invalid password` как «почти канон».
-
-Фаза `eval.pack` — позже, см. `src/test/java/eval/pack/README.md`.
+- Не считать `@Step` на методе `*Tests` «более Allure».

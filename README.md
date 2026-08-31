@@ -8,8 +8,8 @@
 
 | Фаза | Что тестируем | Сейчас |
 |------|----------------|--------|
-| 1. Generation | Агент пишет автотест (golden + контракт) | этот репозиторий |
-| 2. Pack | Skills, rules, RAG как продукт automation | позже, пакет `eval.pack` |
+| 1. Generation | Агент пишет автотест (golden + контракт) | `eval.generation` |
+| 2. Pack | Skills, rules, RAG как продукт automation | `eval.pack` |
 
 Не строка матрицы UI/HTTP в `matrix.yaml`. Не копировать в `tests-java-gradle-junit5-allure3-selenide`.
 
@@ -39,5 +39,6 @@ cd projects/autotests-ai-multistack-home/java-ai-golden
 - `LiveGenerationContractTest` — generate → тот же контракт → `Judge` (LLM-as-a-judge, `-Djudge=false` чтобы выключить).
 - Судья читает MODE: негатив формы, happy path и API — разные must.
 - Канон негатива: лаборатория 36, не `fillAndSubmitForm` → HomePage; JSON — не `Unauthorized`.
+- `eval.pack` — диета без LLM: изоляция слоя, якоря skill, инвентарь RAG.
 
-Красный демо офлайн: в `login-401-ui.out.md` вставить `fillAndSubmitForm`. Live: сломанный skill / обрезанная строка `RAG:` / вежливый отказ без токена → падает контракт.
+Красный демо офлайн: в `login-401-ui.out.md` вставить `fillAndSubmitForm` или `@Step` на методе. Live: сломанный skill / обрезанная строка `RAG:` / вежливый отказ без токена / `@Step` на тесте → падает контракт. Pack-демо: `test-negative` в rag у API-кейса.
