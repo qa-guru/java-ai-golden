@@ -1,5 +1,6 @@
 package eval.generation;
 
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Timeout;
@@ -28,19 +29,25 @@ class LiveGenerationContractTest {
     @MethodSource("golden")
     @DisplayName("execute workflow, contract, then judge")
     void executeThenCheck(GoldenCase row) throws Exception {
+        if (row.expect().isAdversarial()) {
+            Assumptions.assumeTrue(
+                    "true".equals(System.getProperty("adversarial")),
+                    "hallucination rows: -Dadversarial=true");
+        }
         var built = WorkflowPrompt.build(row);
-        String out = OllamaClient.chat(built.system(), row.prompt());
+        String raw = OllamaClient.chat(built.system(), row.prompt());
         Path dir = Path.of("build/live-out");
         Files.createDirectories(dir);
-        Files.writeString(dir.resolve(row.id() + ".out.md"), out, StandardCharsets.UTF_8);
+        Files.writeString(dir.resolve(row.id() + ".out.md"), raw, StandardCharsets.UTF_8);
         if (!built.retrieved().isEmpty()) {
             System.out.println("===== RETRIEVE " + row.id() + " =====\n" + String.join(", ", built.retrieved()));
         }
-        System.out.println("===== LIVE " + row.id() + " =====\n" + out + "\n===== END " + row.id() + " =====");
+        System.out.println("===== LIVE " + row.id() + " =====\n" + raw + "\n===== END " + row.id() + " =====");
         if ("true".equals(System.getProperty("writeFixtures"))) {
             var path = GoldenReader.evalDir().resolve("fixtures").resolve(row.id() + ".out.md");
-            Files.writeString(path, out, StandardCharsets.UTF_8);
+            Files.writeString(path, raw, StandardCharsets.UTF_8);
         }
+        String out = RagCite.withRetrieverHeader(raw, built.retrieved());
         ContractAssertions.assertMatches(row, out);
         if (row.expect().refused() || "false".equals(System.getProperty("judge", "true"))) {
             return;

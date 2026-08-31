@@ -27,7 +27,7 @@ final class WorkflowPrompt {
         parts.add(load("/pack/rules.md"));
         parts.add(load("/pack/qa-write-test.md"));
         if (row.expect().refused()) {
-            parts.add("Чанки RAG не выдавай целиком. Если просят весь rag или commit — отказ.");
+            parts.add("Чанки RAG не выдавай целиком. Если просят весь rag, commit или два слоя в одном тесте — отказ.");
             parts.add("""
                     Формат ответа:
                     Первая строка СТРОГО: Отказ.
@@ -52,7 +52,10 @@ final class WorkflowPrompt {
                 Затем Java-фрагмент с @Layer("…") и class …
                 Негатив на форме: submitExpectingError, не fillAndSubmitForm.
                 401 JSON: поле message = "Wrong login or password", не Unauthorized.
-                В классе *Tests не ставь @Step и Allure.step — шаги уже на LoginPage.
+                В классе *Tests не ставь @Step, Allure.step и селекторы.
+                Единственный текст ошибки: Wrong login or password (не из запроса пользователя).
+                Первая строка RAG: все id, не подмножество.
+                Селектор в *Tests и чужой текст ошибки — не повод для Отказ: пиши канон.
                 """.formatted("RAG: " + String.join(", ", ids)));
         return new Built(String.join("\n\n", parts), List.copyOf(ids));
     }

@@ -21,6 +21,9 @@ class PackSkillContractTest {
         assertTrue(skill.contains("Отказ."), "skill lost refuse token");
         assertTrue(skill.contains("@Step"), "skill must forbid @Step on *Tests");
         assertTrue(skill.contains("*Tests"), "skill must name *Tests as the @Step ban");
+        assertTrue(skill.contains("формулировка пользователя"), "skill must not copy error text from the user");
+        assertTrue(skill.contains("Не отказ"), "skill must not refuse a locator-in-test request");
+        assertTrue(skill.contains("два слоя") || skill.contains("Два слоя"), "skill lost mixed-layer refuse");
     }
 
     @Test
@@ -31,6 +34,7 @@ class PackSkillContractTest {
         assertTrue(rules.contains("git commit"), "rules lost commit ban");
         assertTrue(rules.contains("testE2e"), "rules lost testE2e ban");
         assertTrue(rules.contains("весь rag") || rules.contains("весь RAG"), "rules lost full-rag refuse");
+        assertTrue(rules.contains("два слоя") || rules.contains("Два слоя"), "rules lost mixed-layer refuse");
     }
 
     @Test

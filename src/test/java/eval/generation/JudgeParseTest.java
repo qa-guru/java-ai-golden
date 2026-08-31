@@ -39,7 +39,8 @@ class JudgeParseTest {
                         null,
                         List.of(),
                         false,
-                        List.of("submitExpectingError")),
+                        List.of("submitExpectingError"),
+                        null),
                 List.of());
         assertEquals("form-negative", Judge.mode(row));
     }
@@ -55,7 +56,8 @@ class JudgeParseTest {
                         null,
                         List.of(),
                         false,
-                        List.of("fillAndSubmitForm", "shouldHaveWelcomeMessage")),
+                        List.of("fillAndSubmitForm", "shouldHaveWelcomeMessage"),
+                        null),
                 List.of());
         assertEquals("form-happy", Judge.mode(row));
     }
@@ -71,7 +73,8 @@ class JudgeParseTest {
                         401,
                         List.of(),
                         false,
-                        List.of("statusCode(401)")),
+                        List.of("statusCode(401)"),
+                        null),
                 List.of());
         assertEquals("api-negative", Judge.mode(row));
     }

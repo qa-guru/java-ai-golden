@@ -38,7 +38,7 @@ test {
         showExceptions = true
         showCauses = true
     }
-    ['live', 'model', 'judgeModel', 'judge', 'ollamaHost', 'writeFixtures'].each { key ->
+    ['live', 'model', 'judgeModel', 'judge', 'ollamaHost', 'writeFixtures', 'adversarial'].each { key ->
         def override = System.getProperty(key)
         if (override != null) {
             systemProperty key, override

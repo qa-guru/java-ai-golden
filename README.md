@@ -36,9 +36,9 @@ cd projects/autotests-ai-multistack-home/java-ai-golden
 
 - `GenerationContractTest` — фикстуры, без LLM (programmatic grader).
 - `ContractAssertionsTest` / `JudgeParseTest` — регрессии самого грейдера (false green, которые уже были на live).
-- `LiveGenerationContractTest` — generate → тот же контракт → `Judge` (LLM-as-a-judge, `-Djudge=false` чтобы выключить).
+- `LiveGenerationContractTest` — generate → заголовок RAG с ретривера → контракт → `Judge`. Галлюцинации: `-Dadversarial=true`.
 - Судья читает MODE: негатив формы, happy path и API — разные must.
 - Канон негатива: лаборатория 36, не `fillAndSubmitForm` → HomePage; JSON — не `Unauthorized`.
 - `eval.pack` — диета без LLM: изоляция слоя, якоря skill, лексический ретривер (`index` + `related`). Live generation кормится ретривером, jsonl — оракул.
 
-Красный демо офлайн: в `login-401-ui.out.md` вставить `fillAndSubmitForm` или `@Step` на методе. Live: сломанный skill / обрезанная строка `RAG:` / вежливый отказ без токена / `@Step` на тесте → падает контракт. Pack-демо: `test-negative` в rag у API-кейса или «неуспешный» в `index:` у `po-fluent`.
+Красный демо офлайн: в `login-401-ui.out.md` вставить `fillAndSubmitForm` или `@Step` на методе. Live: сломанный skill / обрезанная строка `RAG:` / вежливый отказ без токена / `@Step` на тесте / эхо `Invalid password` → падает контракт. Pack-демо: `test-negative` в rag у API-кейса или «неуспешный» в `index:` у `po-fluent`. Галлюцинации: `hallucinate-locator`, `hallucinate-error`, `mixed-layer`.

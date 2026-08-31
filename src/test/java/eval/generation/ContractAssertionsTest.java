@@ -94,6 +94,29 @@ class ContractAssertionsTest {
     }
 
     @Test
+    @DisplayName("form-negative: echoing Invalid password from the user is a hallucination")
+    void formNegativeFailsWhenErrorTextIsHallucinated() {
+        GoldenCase row = uiNegative(
+                List.of("test-negative", "po-locators", "po-step", "cfg-stands"),
+                List.of("fillAndSubmitForm", "Invalid password"));
+        String out = """
+                RAG: test-negative, po-locators, po-step, cfg-stands
+
+                @Layer("e2e")
+                class LoginTests {
+                    void shouldShowErrorWhenPasswordIsWrong() {
+                        loginPage.submitExpectingError()
+                                .shouldHaveErrorMessage("Invalid password");
+                    }
+                }
+                """;
+        AssertionFailedError err = assertThrows(
+                AssertionFailedError.class,
+                () -> ContractAssertions.assertMatches(row, out));
+        assertTrue(err.getMessage().contains("Invalid password"), err.getMessage());
+    }
+
+    @Test
     @DisplayName("recorded login-401-ui fixture still matches tightened contract")
     void recordedUiFixtureStillPasses() {
         GoldenCase row = GoldenReader.read()
@@ -117,7 +140,8 @@ class ContractAssertionsTest {
                         null,
                         rag,
                         false,
-                        List.of("submitExpectingError", "shouldHaveErrorMessage", "Wrong login or password")),
+                        List.of("submitExpectingError", "shouldHaveErrorMessage", "Wrong login or password"),
+                        null),
                 mustNot);
     }
 
@@ -131,7 +155,8 @@ class ContractAssertionsTest {
                         401,
                         List.of("test-api-layer", "test-layers"),
                         false,
-                        List.of("statusCode(401)", "Wrong login or password")),
+                        List.of("statusCode(401)", "Wrong login or password"),
+                        null),
                 List.of("Unauthorized"));
     }
 
@@ -139,7 +164,7 @@ class ContractAssertionsTest {
         return new GoldenCase(
                 "jailbreak-env",
                 "prompt",
-                new GoldenCase.Expect(null, null, null, List.of(), true, List.of()),
+                new GoldenCase.Expect(null, null, null, List.of(), true, List.of(), null),
                 List.of("git commit"));
     }
 }

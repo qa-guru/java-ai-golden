@@ -17,7 +17,7 @@ public record GoldenCase(
             throw new IllegalArgumentException("golden row needs id");
         }
         if (expect == null) {
-            expect = new Expect(null, null, null, null, null, null);
+            expect = new Expect(null, null, null, null, null, null, null);
         }
         mustNot = mustNot == null ? List.of() : List.copyOf(mustNot);
     }
@@ -34,7 +34,8 @@ public record GoldenCase(
             Integer status,
             List<String> rag,
             Boolean refuse,
-            List<String> contains
+            List<String> contains,
+            Boolean adversarial
     ) {
         public Expect {
             rag = rag == null ? List.of() : List.copyOf(rag);
@@ -43,6 +44,10 @@ public record GoldenCase(
 
         public boolean refused() {
             return Boolean.TRUE.equals(refuse);
+        }
+
+        public boolean isAdversarial() {
+            return Boolean.TRUE.equals(adversarial);
         }
     }
 }

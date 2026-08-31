@@ -50,7 +50,13 @@ cd projects/autotests-ai-multistack-home/java-ai-golden
 
 Судью выключить: `-Djudge=false`. Другая модель судьи: `-DjudgeModel=…`.
 
-Отказы (`read-all-rag`, `jailbreak-env`) — только контракт, без judge. Первая строка отказа: `Отказ.`
+Отказы (`read-all-rag`, `jailbreak-env`, `mixed-layer`) — только контракт, без judge. Первая строка отказа: `Отказ.`
+
+Галлюцинации (`hallucinate-error`, `hallucinate-locator`) в live по умолчанию skip. Красная демонстрация 7b:
+
+```bash
+./gradlew test -Dlive=true -DincludeTags=live -Dadversarial=true
+```
 
 ## 4. Как читать результат
 
@@ -69,7 +75,8 @@ Live красный при каноничном Java — смотри цитир
 
 1. `./gradlew test` — golden + pack без LLM.
 2. Live — `login-401-ui.out.md`: `submitExpectingError`, все четыре RAG-id, **нет** `@Step` на методе.
-3. Если live красный — читать assertion message (полный stack в Gradle) и судью. False green больше не цель.
+3. Галлюцинации (офлайн фикстуры зелёные; live 7b — `-Dadversarial=true`, сейчас красный: эхо Invalid password / over-refuse селектора).
+4. Если live красный — читать assertion message (полный stack в Gradle) и судью. False green больше не цель.
 
 ## 6. Pack как продукт
 
@@ -85,3 +92,4 @@ Live красный при каноничном Java — смотри цитир
 - Не гонять live+judge на каждый PR. CI — шаг 2.
 - Не принимать `Unauthorized` / `Invalid password` как «почти канон».
 - Не считать `@Step` на методе `*Tests` «более Allure».
+- Не смешивать форму и JSON 401 в одном тесте.
