@@ -6,7 +6,7 @@
 
 must: `@Layer("e2e")`, `class LoginTests`, `submitExpectingError`, `shouldHaveErrorMessage`, `Wrong login or password`.  
 must not: `fillAndSubmitForm`, `statusCode(401)`, `Unauthorized`, `Invalid password`, `@Step` / `Allure.step` на методе теста.  
-Строка `RAG:` — все id из expect.rag, не подмножество.
+Строка `RAG:` на live приходит от ретривера (workflow), не обязанность модели.
 
 ## MODE=form-happy
 

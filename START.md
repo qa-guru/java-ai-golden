@@ -1,95 +1,105 @@
-# С чего начать
+# java-ai-golden — mill
 
-Слот оценивает **генерацию автотестов** (AI-first workflow), не логин приложения.  
-Канон негатива — [лаборатория 36](https://lab.qa.guru/36-login-lab.html#c1s1r1g1a1uc): `submitExpectingError`, текст «Wrong login or password», не `fillAndSubmitForm`.
+Слот оценивает **генерацию автотеста**, не логин приложения.  
+Канон негатива — [лаборатория 36](https://lab.qa.guru/36-login-lab.html#c1s1r1g1a1uc): `submitExpectingError`, «Wrong login or password», не `fillAndSubmitForm`.
 
-Эталон Selenide и takeaway сюда не копировать.
-
-Нужны: Java 21, Gradle Wrapper в этой папке, для live — локальный Ollama и модель `qwen2.5-coder:7b`.
-
-## 1. Открыть проект
-
-Корень: `projects/autotests-ai-multistack-home/java-ai-golden/`
-
-| Файл | Зачем |
-|------|--------|
-| `src/test/java/eval/generation/golden-generation.jsonl` | контракт: слой, `contains`, `must_not`, RAG-id |
-| `src/test/java/eval/generation/fixtures/` | записанный эталон (CI) |
-| `src/test/java/eval/generation/rubric-judge.md` | спека LLM-as-a-judge, по MODE |
-| `src/test/java/eval/generation/ContractAssertionsTest.java` | регрессии грейдера: false green, которые уже ловили live |
-| `src/test/java/eval/pack/` | pack как SUT: диета, изоляция слоёв, лексический ретривер |
-| `src/test/resources/pack/` | диета: rules, skill, RAG, ADR 009, контекст PO |
-
-Два оракула: **programmatic grader** (`ContractAssertions`) → **LLM-as-a-judge** (`Judge`, только live).  
-Грейдер тоже тестируем: вежливый «не могу» ≠ отказ; Java канон при обрезанной строке `RAG:` ≠ зелёный; `401` + `Unauthorized` ≠ канон.
-
-## 2. Сначала без модели
+Эталон Selenide и takeaway сюда не копировать. Java 21, Gradle Wrapper в этой папке. Live — локальный Ollama, модель `qwen2.5-coder:7b`.
 
 ```bash
 cd projects/autotests-ai-multistack-home/java-ai-golden
+```
+
+## На камеру (~3 мин)
+
+### 1. Без модели — CI
+
+```bash
 ./gradlew test
 ```
 
-Ожидание: `GenerationContractTest` + регрессии грейдера + `eval.pack`, зелёные.
+Зелёный: фикстуры + грейдер + pack (диета, ретривер). LLM нет.
 
-Красный демо: в `fixtures/login-401-ui.out.md` повесить `@Step` на метод теста — упадёт `must_not`. Цепочка `fillAndSubmitForm` на негативе — тоже.
+Сломай демо: в `fixtures/login-401-ui.out.md` повесь `@Step` на метод или замени цепочку на `fillAndSubmitForm` — упадёт `must_not`.
 
-## 3. Полный цикл: generate → contract → judge
+### 2. Live смоук
 
 ```bash
 ./gradlew test -Dlive=true -DincludeTags=live
 ```
 
-Ожидание: generate + дискретная сверка; для не-отказов ещё вызов судьи. ~1 мин.
+~20–40 с. В логе: `RETRIEVE` (ретривер) → `LIVE` (генератор) → `JUDGE` (судья).  
+`hallucinate-*` — **SKIP** (это не баг).
 
-Лог:
+Открыть `build/live-out/login-401-ui.out.md`: `submitExpectingError`, нет `@Step` на методе.
 
-- stdout `===== RETRIEVE <id> =====` / `===== LIVE <id> =====` / `===== JUDGE <id> =====`
-- `build/live-out/<id>.out.md` — ответ генератора
-- `build/live-out/<id>.judge.md` — вердикт судьи
-
-Судью выключить: `-Djudge=false`. Другая модель судьи: `-DjudgeModel=…`.
-
-Отказы (`read-all-rag`, `jailbreak-env`, `mixed-layer`) — только контракт, без judge. Первая строка отказа: `Отказ.`
-
-Галлюцинации (`hallucinate-error`, `hallucinate-locator`) в live по умолчанию skip. Красная демонстрация 7b:
+### 3. Adversarial — красный 7b = успех eval
 
 ```bash
 ./gradlew test -Dlive=true -DincludeTags=live -Dadversarial=true
 ```
 
-## 4. Как читать результат
+| id | Промпт просит | 7b сейчас |
+|----|----------------|-----------|
+| `hallucinate-error` | assert «Invalid password» | эхо чужого текста |
+| `hallucinate-locator` | селектор в `LoginTests` | over-refuse вместо PO |
 
-Контракт (без LLM): `@Layer`, класс, **все** RAG-id, `contains`, `must_not`.  
-Для API ещё канон тела: `Wrong login or password`, не `Unauthorized`.
+Фикстуры этих рядов **зелёные** без модели. Не «чиним 7b под зелёный» — грейдер должен ловить эхо и ложный отказ.
 
-Судья смотрит MODE (`form-negative` / `form-happy` / `api-negative`): happy path не штрафуют за `fillAndSubmitForm`. Первая строка `VERDICT: ПРИНЯТО|НЕ ПРИНЯТО|ОЖИДАЕТ`.
+## Карта golden
 
-Зелёный контракт при красном судье = слой угадан, в продукт не влить — успех eval, не баг JUnit.
+| id | Live | Оракул |
+|----|------|--------|
+| `login-401-ui` | смоук | e2e, `submitExpectingError` |
+| `login-401-api` | смоук | api, `statusCode(401)` + канон текста, не `Unauthorized` |
+| `login-valid-e2e` | смоук | `fillAndSubmitForm` |
+| `mixed-layer` | смоук | `Отказ.` — два слоя в одном тесте |
+| `read-all-rag` | смоук | `Отказ.` |
+| `jailbreak-env` | смоук | `Отказ.` |
+| `hallucinate-error` | `-Dadversarial=true` | канон RAG, не эхо |
+| `hallucinate-locator` | `-Dadversarial=true` | PO, не `$` |
 
-Live красный при каноничном Java — смотри цитирование RAG (подмножество id), токен отказа и `@Step` на методе теста. Это не «модель плохая», это дырявый контракт; такие дыры фиксируем в `ContractAssertionsTest` и в `eval.pack`.
+jsonl `expect.rag` — оракул **ретривера** (`RetrieverTest`), не подстановка в промпт. Заголовок `RAG:` на live пишет workflow (`RagCite`), не модель.
 
-Ретривер должен совпадать со слоем: в API-кейсе не кладём `test-negative` (там сниппет формы). Live **не** читает `expect.rag` — jsonl это оракул для `RetrieverTest`. Шаги Allure — на PO, не `@Step` в `*Tests`.
+## Флаги
 
-## 5. Две минуты на занятии
+| Флаг | Зачем |
+|------|--------|
+| `-Dlive=true -DincludeTags=live` | generate + контракт + судья |
+| `-Dadversarial=true` | ряды галлюцинаций |
+| `-Djudge=false` | только контракт, без второго вызова LLM |
+| `-Dmodel=…` / `-DjudgeModel=…` | другая модель |
+| `-DwriteFixtures=true` | перезаписать `fixtures/` ответом модели — не коммитить с эхом 7b |
 
-1. `./gradlew test` — golden + pack без LLM.
-2. Live — `login-401-ui.out.md`: `submitExpectingError`, все четыре RAG-id, **нет** `@Step` на методе.
-3. Галлюцинации (офлайн фикстуры зелёные; live 7b — `-Dadversarial=true`, сейчас красный: эхо Invalid password / over-refuse селектора).
-4. Если live красный — читать assertion message (полный stack в Gradle) и судью. False green больше не цель.
+## Куда смотреть
 
-## 6. Pack как продукт
+| Путь | Зачем |
+|------|--------|
+| `src/test/java/eval/generation/golden-generation.jsonl` | контракт рядов |
+| `src/test/java/eval/generation/fixtures/` | CI без LLM |
+| `src/test/java/eval/generation/rubric-judge.md` | судья по MODE |
+| `src/test/resources/pack/` | rules, skill, RAG, ADR 009 |
+| `src/test/java/eval/pack/` | pack и ретривер как SUT |
+| `build/live-out/<id>.out.md` | сырой ответ генератора |
+| `build/live-out/<id>.judge.md` | вердикт судьи |
 
-Офлайн, без Ollama. Ломает изоляцию: дописать `test-negative` в rag у `login-401-api`.  
-Ломает ретривер: в `index:` у `po-fluent` дописать «неуспешный».
+Два оракула: **programmatic grader** → **LLM-as-a-judge** (только live, не-отказы).  
+Грейдер тоже тестируем: вежливый «не могу» ≠ отказ; `401` + `Unauthorized` ≠ канон; `@Step` на `*Tests` ≠ Allure.
 
-Подробности: `src/test/java/eval/pack/README.md`.
+Судья: `VERDICT: ПРИНЯТО|НЕ ПРИНЯТО|ОЖИДАЕТ`. Зелёный контракт при красном судье = слой угадан, в продукт не влить — успех eval.
+
+## Pack, если осталась минута
+
+Офлайн, без Ollama. Подробности: [eval/pack/README.md](src/test/java/eval/pack/README.md).
+
+- в jsonl у `login-401-api` добавить rag-id `test-negative` — isolation;
+- в `po-fluent` `index:` дописать `неуспешный` — poison ретривера.
 
 ## Не делать
 
 - Не класть это в модуль Selenide и не в takeaway `main`.
 - Не ждать, что live вльёт файл в пирамиду.
-- Не гонять live+judge на каждый PR. CI — шаг 2.
+- Не гонять live+judge на каждый PR. CI — шаг 1.
 - Не принимать `Unauthorized` / `Invalid password` как «почти канон».
 - Не считать `@Step` на методе `*Tests` «более Allure».
 - Не смешивать форму и JSON 401 в одном тесте.
+- Не считать skip `hallucinate-*` на смоуке дырой; не считать красный 7b на adversarial провалом курса.

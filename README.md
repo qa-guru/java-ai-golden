@@ -1,44 +1,38 @@
 # java-ai-golden
 
-**Старт:** [START.md](START.md) — без модели, потом live, куда смотреть лог.
+**Mill занятия:** [START.md](START.md) — без модели, live смоук, красный 7b на adversarial.
 
 Отдельный слот **тестирования ИИ**, не ячейка пирамиды заметок и не папка внутри эталона / takeaway.
 
 Объект качества — агент и AI-процесс QA.Guru, не логин приложения.
 
-| Фаза | Что тестируем | Сейчас |
-|------|----------------|--------|
-| 1. Generation | Агент пишет автотест (golden + контракт) | `eval.generation` |
-| 2. Pack | Skills, rules, RAG как продукт automation | `eval.pack` |
+| Фаза | Что тестируем | Где |
+|------|----------------|-----|
+| 1. Generation | Агент пишет автотест | `eval.generation` |
+| 2. Pack | Skills, rules, RAG, ретривер | `eval.pack` |
 
 Не строка матрицы UI/HTTP в `matrix.yaml`. Не копировать в `tests-java-gradle-junit5-allure3-selenide`.
 
 ## Прогон
 
-Записанные фикстуры (без модели, CI):
-
 ```bash
 cd projects/autotests-ai-multistack-home/java-ai-golden
 ./gradlew test
-```
-
-Полный цикл: исполнить workflow (rules + skill + RAG → Ollama) и сразу проверить golden:
-
-```bash
 ./gradlew test -Dlive=true -DincludeTags=live
+./gradlew test -Dlive=true -DincludeTags=live -Dadversarial=true
 ```
 
-Нужен локальный Ollama. Модель по умолчанию `qwen2.5-coder:7b`. Другая: `-Dmodel=…`. Перезаписать фикстуры ответом модели: `-DwriteFixtures=true`.
+Нужен локальный Ollama. Модель по умолчанию `qwen2.5-coder:7b`. Другая: `-Dmodel=…`. Судью выключить: `-Djudge=false`. Перезаписать фикстуры: `-DwriteFixtures=true` (не коммитить эхо 7b).
 
-Диета пака для live лежит в `src/test/resources/pack/` (не takeaway и не эталон).
+Диета пака: `src/test/resources/pack/`.
 
-## Контракт vs судья
+## Контракт vs судья vs ретривер
 
-- `GenerationContractTest` — фикстуры, без LLM (programmatic grader).
-- `ContractAssertionsTest` / `JudgeParseTest` — регрессии самого грейдера (false green, которые уже были на live).
-- `LiveGenerationContractTest` — generate → заголовок RAG с ретривера → контракт → `Judge`. Галлюцинации: `-Dadversarial=true`.
-- Судья читает MODE: негатив формы, happy path и API — разные must.
-- Канон негатива: лаборатория 36, не `fillAndSubmitForm` → HomePage; JSON — не `Unauthorized`.
-- `eval.pack` — диета без LLM: изоляция слоя, якоря skill, лексический ретривер (`index` + `related`). Live generation кормится ретривером, jsonl — оракул.
+- `GenerationContractTest` — фикстуры, без LLM.
+- `ContractAssertionsTest` / `JudgeParseTest` / `RagCiteTest` — регрессии грейдера и заголовка RAG.
+- `LiveGenerationContractTest` — generate → `RagCite` (заголовок с ретривера) → контракт → `Judge`. Галлюцинации только с `-Dadversarial=true`.
+- `RetrieverTest` — jsonl `expect.rag` как оракул лексического ретривера, не как подстановка в промпт.
+- Судья по MODE: негатив формы, happy path, API.
+- Канон: лаборатория 36; JSON — не `Unauthorized`.
 
-Красный демо офлайн: в `login-401-ui.out.md` вставить `fillAndSubmitForm` или `@Step` на методе. Live: сломанный skill / обрезанная строка `RAG:` / вежливый отказ без токена / `@Step` на тесте / эхо `Invalid password` → падает контракт. Pack-демо: `test-negative` в rag у API-кейса или «неуспешный» в `index:` у `po-fluent`. Галлюцинации: `hallucinate-locator`, `hallucinate-error`, `mixed-layer`.
+Красный демо офлайн: `@Step` или `fillAndSubmitForm` в `login-401-ui` фикстуре. Pack: `test-negative` в API-rag или «неуспешный» в `index:` у `po-fluent`. Adversarial live: эхо `Invalid password`, over-refuse селектора.

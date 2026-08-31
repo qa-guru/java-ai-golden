@@ -5,11 +5,13 @@ SUT — не логин и не сгенерированный Java, а **дие
 
 CI без LLM. Live generation берёт чанки из `LexicalRetriever.retrieve(prompt)`, не из jsonl.
 
+Mill занятия — [START.md](../../../../../START.md) в корне слота.
+
 | Тест | Ловит |
 |------|--------|
 | `PackDietTest` | битый id, 0 или 5+ чанков, пустой `index:`, `related` на несуществующий файл |
 | `PackLayerIsolationTest` | UI-чанк в API-golden (`test-negative` → `submitExpectingError` в api) |
-| `PackSkillContractTest` | вырезанные якоря: отказ, lab 36, «можно @Step в тесте» |
+| `PackSkillContractTest` | вырезанные якоря: отказ, lab 36, «можно @Step в тесте», over-refuse селектора |
 | `RetrieverTest` | ретривер ≠ golden; «Не e2e» не отфильтровало форму; отравленный `index` у `po-fluent` |
 
 Ретривер: пересечение токенов по YAML `index` / tags / id / заголовок, затем `related` до 2–4 id. Тело чанка (Java-сниппеты) **не** индексируется — иначе `wrongpassword` склеивает слои.
