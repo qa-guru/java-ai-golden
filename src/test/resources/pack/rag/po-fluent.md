@@ -3,7 +3,8 @@ id: po-fluent
 domain: testing
 adr: 002
 tags: [selenide, pageobject]
-related: [po-locators, po-step, test-negative, testdata-user]
+related: [testdata-user]
+index: [успешный, e2e, loginpage, user1, fluent, welcome]
 ---
 # Fluent Page Object
 

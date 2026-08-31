@@ -3,6 +3,8 @@ id: po-locators
 domain: testing
 adr: 002
 tags: [selenide, locators]
+related: []
+index: [локатор, селектор, data-testid]
 ---
 # Селекторы только в PO
 

@@ -3,7 +3,8 @@ id: test-layers
 domain: testing
 adr: 002
 tags: [layer, allure, gradle]
-related: [test-pyramid, ci-gradle-args]
+related: [test-api-layer]
+index: [layer, gradle, tag, includetags]
 ---
 # @Layer → тег → Gradle
 

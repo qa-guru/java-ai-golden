@@ -3,7 +3,8 @@ id: test-negative
 domain: testing
 adr: 002
 tags: [negative, login]
-related: [po-fluent, testdata-user]
+related: [po-locators, po-step, cfg-stands]
+index: [неуспешный, неправильный, пароль, логин, negative, e2e, форма]
 ---
 # Negative login
 

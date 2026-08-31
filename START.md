@@ -17,7 +17,7 @@
 | `src/test/java/eval/generation/fixtures/` | записанный эталон (CI) |
 | `src/test/java/eval/generation/rubric-judge.md` | спека LLM-as-a-judge, по MODE |
 | `src/test/java/eval/generation/ContractAssertionsTest.java` | регрессии грейдера: false green, которые уже ловили live |
-| `src/test/java/eval/pack/` | pack как SUT: диета, изоляция слоёв, якоря skill/rules |
+| `src/test/java/eval/pack/` | pack как SUT: диета, изоляция слоёв, лексический ретривер |
 | `src/test/resources/pack/` | диета: rules, skill, RAG, ADR 009, контекст PO |
 
 Два оракула: **programmatic grader** (`ContractAssertions`) → **LLM-as-a-judge** (`Judge`, только live).  
@@ -44,7 +44,7 @@ cd projects/autotests-ai-multistack-home/java-ai-golden
 
 Лог:
 
-- stdout `===== LIVE <id> =====` / `===== JUDGE <id> =====`
+- stdout `===== RETRIEVE <id> =====` / `===== LIVE <id> =====` / `===== JUDGE <id> =====`
 - `build/live-out/<id>.out.md` — ответ генератора
 - `build/live-out/<id>.judge.md` — вердикт судьи
 
@@ -63,7 +63,7 @@ cd projects/autotests-ai-multistack-home/java-ai-golden
 
 Live красный при каноничном Java — смотри цитирование RAG (подмножество id), токен отказа и `@Step` на методе теста. Это не «модель плохая», это дырявый контракт; такие дыры фиксируем в `ContractAssertionsTest` и в `eval.pack`.
 
-Ретривер должен совпадать со слоем: в API-кейсе не кладём `test-negative` (там сниппет формы). Диета API — `test-api-layer` + `test-layers`. Шаги Allure — на PO, не `@Step` в `*Tests`.
+Ретривер должен совпадать со слоем: в API-кейсе не кладём `test-negative` (там сниппет формы). Live **не** читает `expect.rag` — jsonl это оракул для `RetrieverTest`. Шаги Allure — на PO, не `@Step` в `*Tests`.
 
 ## 5. Две минуты на занятии
 
@@ -73,7 +73,8 @@ Live красный при каноничном Java — смотри цитир
 
 ## 6. Pack как продукт
 
-Офлайн, без Ollama. Ломает изоляцию: дописать `test-negative` в rag у `login-401-api`.
+Офлайн, без Ollama. Ломает изоляцию: дописать `test-negative` в rag у `login-401-api`.  
+Ломает ретривер: в `index:` у `po-fluent` дописать «неуспешный».
 
 Подробности: `src/test/java/eval/pack/README.md`.
 

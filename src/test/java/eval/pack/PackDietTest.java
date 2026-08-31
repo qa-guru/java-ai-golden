@@ -53,6 +53,18 @@ class PackDietTest {
     }
 
     @Test
+    @DisplayName("every chunk has index terms and related ids that exist")
+    void indexAndRelatedAreWellFormed() {
+        List<String> ids = PackFiles.chunks().stream().map(RagChunk::id).toList();
+        for (RagChunk chunk : PackFiles.chunks()) {
+            assertTrue(!chunk.index().isEmpty(), chunk.id() + " missing YAML index:");
+            for (String rel : chunk.related()) {
+                assertTrue(ids.contains(rel), chunk.id() + " related unknown id " + rel);
+            }
+        }
+    }
+
+    @Test
     @DisplayName("skill, rules, ADR 009, login PO context exist")
     void requiredPackFilesExist() {
         for (String relative : List.of(

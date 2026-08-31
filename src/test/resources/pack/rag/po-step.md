@@ -3,6 +3,8 @@ id: po-step
 domain: testing
 adr: 002
 tags: [allure, step]
+related: []
+index: [allure, step, шаг]
 ---
 # Allure @Step на PO
 

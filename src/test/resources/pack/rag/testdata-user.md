@@ -3,7 +3,8 @@ id: testdata-user
 domain: testing
 adr: 002
 tags: [testdata, seed, faker]
-related: [po-fluent, test-negative, cfg-stands]
+related: [po-fluent]
+index: [user1, password1, testdata, сид, seed]
 ---
 # Сид стенда vs фабрика
 

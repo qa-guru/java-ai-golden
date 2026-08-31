@@ -3,6 +3,8 @@ id: cfg-stands
 domain: testing
 adr: 002
 tags: [stands, config]
+related: []
+index: [стенд, env, properties, url]
 ---
 # cfg-stands
 

@@ -3,7 +3,8 @@ id: test-api-layer
 domain: testing
 adr: 004
 tags: [api, rest-assured]
-related: [testdata-user, cfg-stands]
+related: [test-layers]
+index: [api, json, 401, rest, пароль, неверный, login]
 ---
 # API слой
 

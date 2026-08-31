@@ -28,10 +28,14 @@ class LiveGenerationContractTest {
     @MethodSource("golden")
     @DisplayName("execute workflow, contract, then judge")
     void executeThenCheck(GoldenCase row) throws Exception {
-        String out = OllamaClient.chat(WorkflowPrompt.system(row), row.prompt());
+        var built = WorkflowPrompt.build(row);
+        String out = OllamaClient.chat(built.system(), row.prompt());
         Path dir = Path.of("build/live-out");
         Files.createDirectories(dir);
         Files.writeString(dir.resolve(row.id() + ".out.md"), out, StandardCharsets.UTF_8);
+        if (!built.retrieved().isEmpty()) {
+            System.out.println("===== RETRIEVE " + row.id() + " =====\n" + String.join(", ", built.retrieved()));
+        }
         System.out.println("===== LIVE " + row.id() + " =====\n" + out + "\n===== END " + row.id() + " =====");
         if ("true".equals(System.getProperty("writeFixtures"))) {
             var path = GoldenReader.evalDir().resolve("fixtures").resolve(row.id() + ".out.md");

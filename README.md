@@ -39,6 +39,6 @@ cd projects/autotests-ai-multistack-home/java-ai-golden
 - `LiveGenerationContractTest` — generate → тот же контракт → `Judge` (LLM-as-a-judge, `-Djudge=false` чтобы выключить).
 - Судья читает MODE: негатив формы, happy path и API — разные must.
 - Канон негатива: лаборатория 36, не `fillAndSubmitForm` → HomePage; JSON — не `Unauthorized`.
-- `eval.pack` — диета без LLM: изоляция слоя, якоря skill, инвентарь RAG.
+- `eval.pack` — диета без LLM: изоляция слоя, якоря skill, лексический ретривер (`index` + `related`). Live generation кормится ретривером, jsonl — оракул.
 
-Красный демо офлайн: в `login-401-ui.out.md` вставить `fillAndSubmitForm` или `@Step` на методе. Live: сломанный skill / обрезанная строка `RAG:` / вежливый отказ без токена / `@Step` на тесте → падает контракт. Pack-демо: `test-negative` в rag у API-кейса.
+Красный демо офлайн: в `login-401-ui.out.md` вставить `fillAndSubmitForm` или `@Step` на методе. Live: сломанный skill / обрезанная строка `RAG:` / вежливый отказ без токена / `@Step` на тесте → падает контракт. Pack-демо: `test-negative` в rag у API-кейса или «неуспешный» в `index:` у `po-fluent`.
