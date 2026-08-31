@@ -41,6 +41,9 @@ final class ContractAssertions {
         for (String ragId : row.expect().rag()) {
             assertTrue(out.contains(ragId), () -> row.id() + " missing RAG id " + ragId + ", got: " + excerpt(out));
         }
+        for (String needle : row.expect().contains()) {
+            assertTrue(out.contains(needle), () -> row.id() + " missing '" + needle + "', got: " + excerpt(out));
+        }
     }
 
     private static String excerpt(String out) {

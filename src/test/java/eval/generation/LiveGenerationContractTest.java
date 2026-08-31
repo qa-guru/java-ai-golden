@@ -16,7 +16,7 @@ import java.util.stream.Stream;
 @Tag("eval")
 @Tag("live")
 @EnabledIfSystemProperty(named = "live", matches = "true")
-@Timeout(value = 4, unit = TimeUnit.MINUTES)
+@Timeout(value = 8, unit = TimeUnit.MINUTES)
 @DisplayName("Live generation")
 class LiveGenerationContractTest {
 
@@ -26,17 +26,24 @@ class LiveGenerationContractTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("golden")
-    @DisplayName("execute workflow then check golden")
+    @DisplayName("execute workflow, contract, then judge")
     void executeThenCheck(GoldenCase row) throws Exception {
         String out = OllamaClient.chat(WorkflowPrompt.system(row), row.prompt());
-        Path liveOut = Path.of("build/live-out").resolve(row.id() + ".out.md");
-        Files.createDirectories(liveOut.getParent());
-        Files.writeString(liveOut, out, StandardCharsets.UTF_8);
+        Path dir = Path.of("build/live-out");
+        Files.createDirectories(dir);
+        Files.writeString(dir.resolve(row.id() + ".out.md"), out, StandardCharsets.UTF_8);
         System.out.println("===== LIVE " + row.id() + " =====\n" + out + "\n===== END " + row.id() + " =====");
         if ("true".equals(System.getProperty("writeFixtures"))) {
             var path = GoldenReader.evalDir().resolve("fixtures").resolve(row.id() + ".out.md");
             Files.writeString(path, out, StandardCharsets.UTF_8);
         }
         ContractAssertions.assertMatches(row, out);
+        if (row.expect().refused() || "false".equals(System.getProperty("judge", "true"))) {
+            return;
+        }
+        String judged = Judge.review(row, out);
+        Files.writeString(dir.resolve(row.id() + ".judge.md"), judged, StandardCharsets.UTF_8);
+        System.out.println("===== JUDGE " + row.id() + " =====\n" + judged + "\n===== END JUDGE " + row.id() + " =====");
+        Judge.assertAccepted(row, judged);
     }
 }

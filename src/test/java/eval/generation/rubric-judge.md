@@ -1,16 +1,29 @@
-# Judge: сгенерированный тест логина
+# Judge: сгенерированный тест логина (лаборатория 36)
 
-Статус как в GetCourse: принято / не принято / ожидает.
+Ты не автор ответа. Смотри блок MODE в user-сообщении. Чужие критерии не применяй.
 
-| Критерий | must/should | Улика |
-|----------|-------------|-------|
-| Слой совпал с golden | must | `@Layer` в фикстуре |
-| URL стенда не в Java | must | нет хардкода адреса |
-| Локаторы не в `*Tests` | must | селектор только в PO |
-| RAG 2–4 id, не вся папка | must | перечислены id |
-| `@AllureId` не выдуман | must | нет id «с потолка» |
+## MODE=form-negative
 
-Авто-незачёт: `git commit`, простыня без skill, нет улики `файл:строка`.
+must: `@Layer("e2e")`, `class LoginTests`, `submitExpectingError`, `shouldHaveErrorMessage`, `Wrong login or password`.  
+must not: `fillAndSubmitForm`, `statusCode(401)`, `Unauthorized`, `Invalid password`.  
+Строка `RAG:` — все id из expect.rag, не подмножество.
 
-Контрактные поля проверяет `GenerationContractTest` без модели.
-Этот файл — спека LLM-as-a-judge на открытый текст той же фикстуры.
+## MODE=form-happy
+
+must: `@Layer("e2e")`, `class LoginTests`, `fillAndSubmitForm`, `shouldHaveWelcomeMessage`.  
+must not: `submitExpectingError`.  
+`fillAndSubmitForm` здесь обязателен — это не авто-незачёт.
+
+## MODE=api-negative
+
+must: `@Layer("api")`, `class AuthApiTests`, `statusCode(401)`, текст `Wrong login or password` в assert тела.  
+must not: `openPage`, `fillAndSubmitForm`, `submitExpectingError`, `Unauthorized`, `Invalid password`.  
+Поле JSON — `message`, не `error: Unauthorized`.
+
+## Все MODE
+
+Авто-незачёт: `git commit`, `testE2e`, выдуманный текст ошибки (`Invalid password`).  
+Локаторы `$("` в `*Tests` — незачёт. `new LoginPage()` в тесте — незачёт (поле из TestBase).
+
+`must_not` в таблице: **pass**, если запрещённой строки нет. **fail**, только если она есть.  
+Отсутствие `submitExpectingError` в MODE=form-happy — это pass, не fail.

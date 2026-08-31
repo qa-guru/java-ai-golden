@@ -1,4 +1,4 @@
-RAG: test-api-layer, test-negative
+RAG: test-api-layer, test-layers
 
 ```java
 @Layer("api")
@@ -7,8 +7,13 @@ class AuthApiTests {
     @Tag("api")
     @Tag("negative")
     void loginWithInvalidPassword() {
-        authApi.login("user1", "wrong")
-                .statusCode(401);
+        given()
+                .body(new LoginRequest("user1", "wrongpassword"))
+                .when()
+                .post("/api/auth/login")
+                .then()
+                .statusCode(401)
+                .body("message", equalTo("Wrong login or password"));
     }
 }
 ```

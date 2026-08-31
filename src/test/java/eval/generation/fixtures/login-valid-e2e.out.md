@@ -8,7 +8,7 @@ class LoginTests {
     void shouldLoginWithValidCredentials() {
         loginPage.openPage()
                 .fillAndSubmitForm("user1", "password1")
-                .shouldBeLoggedIn();
+                .shouldHaveWelcomeMessage("Welcome, user1!");
     }
 }
 ```

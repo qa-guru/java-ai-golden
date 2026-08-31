@@ -1,23 +1,26 @@
 # С чего начать
 
 Слот оценивает **генерацию автотестов** (AI-first workflow), не логин приложения.  
+Канон негатива — [лаборатория 36](https://lab.qa.guru/36-login-lab.html#c1s1r1g1a1uc): `submitExpectingError`, текст «Wrong login or password», не `fillAndSubmitForm`.
+
 Эталон Selenide и takeaway сюда не копировать.
 
 Нужны: Java 21, Gradle Wrapper в этой папке, для live — локальный Ollama и модель `qwen2.5-coder:7b`.
 
 ## 1. Открыть проект
 
-Корень:
-
-`projects/autotests-ai-multistack-home/java-ai-golden/`
-
-Три файла, с которых смотреть:
+Корень: `projects/autotests-ai-multistack-home/java-ai-golden/`
 
 | Файл | Зачем |
 |------|--------|
-| `src/test/java/eval/generation/golden-generation.jsonl` | контракт: промпт → слой / запреты |
-| `src/test/java/eval/generation/fixtures/` | записанный эталон ответа (не live) |
-| `src/test/resources/pack/` | диета workflow: rules + skill + RAG |
+| `src/test/java/eval/generation/golden-generation.jsonl` | контракт: слой, `contains`, `must_not`, RAG-id |
+| `src/test/java/eval/generation/fixtures/` | записанный эталон (CI) |
+| `src/test/java/eval/generation/rubric-judge.md` | спека LLM-as-a-judge, по MODE |
+| `src/test/java/eval/generation/ContractAssertionsTest.java` | регрессии грейдера: false green, которые уже ловили live |
+| `src/test/resources/pack/` | диета: rules, skill, RAG, ADR 009, контекст PO |
+
+Два оракула: **programmatic grader** (`ContractAssertions`) → **LLM-as-a-judge** (`Judge`, только live).  
+Грейдер тоже тестируем: вежливый «не могу» ≠ отказ; Java канон при обрезанной строке `RAG:` ≠ зелёный; `401` + `Unauthorized` ≠ канон.
 
 ## 2. Сначала без модели
 
@@ -26,53 +29,52 @@ cd projects/autotests-ai-multistack-home/java-ai-golden
 ./gradlew test
 ```
 
-Ожидание: 5 тестов `GenerationContractTest`, зелёные. Модель не вызывается.  
-Это регрессия контракта: jsonl ↔ фикстура.
+Ожидание: `GenerationContractTest` + регрессии грейдера, зелёные.
 
-Красный демо: в `fixtures/login-401-api.out.md` вставить `openPage()`, снова `./gradlew test` — упадёт `must_not`.
+Красный демо: в `fixtures/login-401-ui.out.md` заменить цепочку на `fillAndSubmitForm` — упадёт `must_not`.
 
-## 3. Полный цикл: исполнить → проверить
-
-Ollama должен быть запущен. Затем:
+## 3. Полный цикл: generate → contract → judge
 
 ```bash
 ./gradlew test -Dlive=true -DincludeTags=live
 ```
 
-Ожидание: 5 тестов `LiveGenerationContractTest`, ~15–30 с.
+Ожидание: generate + дискретная сверка; для не-отказов ещё вызов судьи. ~1 мин.
 
-Цепочка: промпт из jsonl → `pack/` → Ollama → `ContractAssertions` (тот же, что у фикстур).
+Лог:
 
-Ответ модели **не** пишется в `LoginTests.java`. Куда смотреть:
+- stdout `===== LIVE <id> =====` / `===== JUDGE <id> =====`
+- `build/live-out/<id>.out.md` — ответ генератора
+- `build/live-out/<id>.judge.md` — вердикт судьи
 
-- stdout Gradle (`===== LIVE <id> =====`);
-- `build/live-out/<id>.out.md` (после прогона).
+Судью выключить: `-Djudge=false`. Другая модель судьи: `-DjudgeModel=…`.
 
-Другая модель: `-Dmodel=…`.  
-Затереть фикстуры live-ответом (редко): `-DwriteFixtures=true`.
+Отказы (`read-all-rag`, `jailbreak-env`) — только контракт, без judge. Первая строка отказа: `Отказ.`
 
 ## 4. Как читать результат
 
-Контракт смотрит **дискретные** поля, не «байт в байт как эталон»:
+Контракт (без LLM): `@Layer`, класс, **все** RAG-id, `contains`, `must_not`.  
+Для API ещё канон тела: `Wrong login or password`, не `Unauthorized`.
 
-- слой `@Layer("api")` / `"e2e"`;
-- `401`, имя класса, RAG-id — если они есть в jsonl;
-- `must_not`: `openPage(`, `testE2e`, `git commit`.
+Судья смотрит MODE (`form-negative` / `form-happy` / `api-negative`): happy path не штрафуют за `fillAndSubmitForm`. Первая строка `VERDICT: ПРИНЯТО|НЕ ПРИНЯТО|ОЖИДАЕТ`.
 
-Зелёный live ≠ каноничный тест продукта. Модель может выдумать `LoginApiTests` и текст ошибки — контракт это пропустит. Для «канонично ли» — `src/test/java/eval/generation/rubric-judge.md` (судья, не этот Gradle).
+Зелёный контракт при красном судье = слой угадан, в продукт не влить — успех eval, не баг JUnit.
 
-Строки `read-all-rag` и `jailbreak-env` — отказ: red team / injection, не генерация логина.
+Live красный при каноничном Java — смотри цитирование RAG (подмножество id) и токен отказа. Это не «модель плохая», это дырявый контракт; такие дыры фиксируем в `ContractAssertionsTest`.
+
+Ретривер должен совпадать со слоем: в API-кейсе не кладём `test-negative` (там сниппет формы). Диета API — `test-api-layer` + `test-layers`.
 
 ## 5. Две минуты на занятии
 
 1. `./gradlew test` — golden без LLM.
-2. Live на `login-401-api` (или весь `-DincludeTags=live`) — открыть `build/live-out/`.
-3. Сказать вслух: фикстура = CI; live = деградация после смены модели; судья = когда нельзя `contains`.
+2. Live — `login-401-ui.out.md`: `submitExpectingError`, все четыре RAG-id.
+3. Если live красный — читать assertion message (полный stack в Gradle) и судью. False green больше не цель.
 
 ## Не делать
 
-- Не класть это в `tests-java-gradle-junit5-allure3-selenide` и не в takeaway `main`.
+- Не класть это в модуль Selenide и не в takeaway `main`.
 - Не ждать, что live вльёт файл в пирамиду.
-- Не гонять live на каждый PR (флейк и токены). CI — только шаг 2.
+- Не гонять live+judge на каждый PR. CI — шаг 2.
+- Не принимать `Unauthorized` / `Invalid password` как «почти канон».
 
-Фаза `eval.pack` (skills/rules как продукт) — позже, см. `src/test/java/eval/pack/README.md`.
+Фаза `eval.pack` — позже, см. `src/test/java/eval/pack/README.md`.

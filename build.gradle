@@ -34,8 +34,11 @@ test {
     testLogging {
         showStandardStreams = true
         events 'passed', 'failed', 'skipped'
+        exceptionFormat = 'full'
+        showExceptions = true
+        showCauses = true
     }
-    ['live', 'model', 'ollamaHost', 'writeFixtures'].each { key ->
+    ['live', 'model', 'judgeModel', 'judge', 'ollamaHost', 'writeFixtures'].each { key ->
         def override = System.getProperty(key)
         if (override != null) {
             systemProperty key, override

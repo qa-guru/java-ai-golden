@@ -17,7 +17,7 @@ public record GoldenCase(
             throw new IllegalArgumentException("golden row needs id");
         }
         if (expect == null) {
-            expect = new Expect(null, null, null, null, null);
+            expect = new Expect(null, null, null, null, null, null);
         }
         mustNot = mustNot == null ? List.of() : List.copyOf(mustNot);
     }
@@ -33,10 +33,12 @@ public record GoldenCase(
             @JsonProperty("class") String className,
             Integer status,
             List<String> rag,
-            Boolean refuse
+            Boolean refuse,
+            List<String> contains
     ) {
         public Expect {
             rag = rag == null ? List.of() : List.copyOf(rag);
+            contains = contains == null ? List.of() : List.copyOf(contains);
         }
 
         public boolean refused() {

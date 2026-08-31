@@ -34,8 +34,10 @@ cd projects/autotests-ai-multistack-home/java-ai-golden
 
 ## Контракт vs судья
 
-- `GenerationContractTest` — фикстуры.
-- `LiveGenerationContractTest` — generate + тот же `ContractAssertions`.
-- `rubric-judge.md` — LLM-as-a-judge на открытый текст, не этот Gradle-срез.
+- `GenerationContractTest` — фикстуры, без LLM (programmatic grader).
+- `ContractAssertionsTest` / `JudgeParseTest` — регрессии самого грейдера (false green, которые уже были на live).
+- `LiveGenerationContractTest` — generate → тот же контракт → `Judge` (LLM-as-a-judge, `-Djudge=false` чтобы выключить).
+- Судья читает MODE: негатив формы, happy path и API — разные must.
+- Канон негатива: лаборатория 36, не `fillAndSubmitForm` → HomePage; JSON — не `Unauthorized`.
 
-Красный демо офлайн: в `login-401-api.out.md` вставить `openPage()`. Live: сломанный skill в `pack/` → падает контракт.
+Красный демо офлайн: в `login-401-ui.out.md` вставить `fillAndSubmitForm`. Live: сломанный skill / обрезанная строка `RAG:` / вежливый отказ без токена → падает контракт.

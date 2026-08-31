@@ -1,4 +1,4 @@
-RAG: test-negative, po-fluent
+RAG: test-negative, po-locators, po-step, cfg-stands
 
 ```java
 @Layer("e2e")
@@ -8,8 +8,10 @@ class LoginTests {
     @Tag("negative")
     void shouldShowErrorWhenPasswordIsWrong() {
         loginPage.openPage()
-                .fillAndSubmitForm("user1", "wrong")
-                .shouldSeeError();
+                .typeUsername("user1")
+                .typePassword("wrongpassword")
+                .submitExpectingError()
+                .shouldHaveErrorMessage("Wrong login or password");
     }
 }
 ```

@@ -16,6 +16,20 @@ related: [testdata-user, cfg-stands]
 ./gradlew test -Denv=ci -DincludeTags=api
 ```
 
+Неверный пароль — JSON, не форма:
+
+```java
+given()
+        .body(new LoginRequest("user1", "wrongpassword"))
+        .when()
+        .post("/api/auth/login")
+        .then()
+        .statusCode(401)
+        .body("message", equalTo("Wrong login or password"));
+```
+
+Поле `message`, канон лаборатории 36. Не `error` / `Unauthorized`.
+
 ## Do
 
 - Новый endpoint → класс в `tests/api/`, assert через Rest Assured.

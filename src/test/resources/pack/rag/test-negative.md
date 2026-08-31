@@ -21,5 +21,16 @@ related: [po-fluent, testdata-user]
 ## Don't
 
 - Inline `$("input")` в negative-тесте.
+- `fillAndSubmitForm` на неверном пароле — метод возвращает `HomePage` и ждёт welcome, не текст ошибки.
 - «Починить» селектор, не воспроизведя ошибку трижды (это уже flaky-skill).
 - Собирать `User` для кейса, где пользователя нет (чанк `testdata-user`).
+
+Негатив на форме:
+
+```java
+loginPage.openPage()
+        .typeUsername("user1")
+        .typePassword("wrongpassword")
+        .submitExpectingError()
+        .shouldHaveErrorMessage("Wrong login or password");
+```

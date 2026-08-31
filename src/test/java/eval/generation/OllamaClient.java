@@ -23,7 +23,10 @@ final class OllamaClient {
     }
 
     static String chat(String system, String user) throws IOException, InterruptedException {
-        String model = System.getProperty("model", "qwen2.5-coder:7b");
+        return chat(system, user, System.getProperty("model", "qwen2.5-coder:7b"));
+    }
+
+    static String chat(String system, String user, String model) throws IOException, InterruptedException {
         String host = System.getProperty("ollamaHost", defaultHost());
         URI uri = URI.create(trimSlash(host) + "/api/chat");
 

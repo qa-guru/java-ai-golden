@@ -20,8 +20,33 @@
 
 Неверный пароль: API-проверка тела/статуса → api. Текст ошибки на форме на живом стенде → e2e.
 
+Негатив e2e (не `fillAndSubmitForm` — он возвращает HomePage):
+
+```java
+loginPage.openPage()
+        .typeUsername("user1")
+        .typePassword("wrongpassword")
+        .submitExpectingError()
+        .shouldHaveErrorMessage("Wrong login or password");
+```
+
+
+API 401 (не клики):
+
+```java
+given()
+        .body(new LoginRequest("user1", "wrongpassword"))
+        .when()
+        .post("/api/auth/login")
+        .then()
+        .statusCode(401)
+        .body("message", equalTo("Wrong login or password"));
+```
+
+Не `Unauthorized` и не поле `error`.
+
 ## DoD
 
 - Слой явный: @Layer("api") или @Layer("e2e")
-- В ответе перечисли id RAG-чанков, которые использовал (строка `RAG: id, id`)
-- Для отказа (весь rag / commit) — напиши «отказ» или «не буду», без git commit и без testE2e
+- Первая строка генерации: `RAG:` и все выданные id, не подмножество
+- Для отказа (весь rag / commit) — первая строка `Отказ.`, без git commit и без testE2e
