@@ -31,6 +31,10 @@ test {
         }
     }
     systemProperty 'file.encoding', 'UTF-8'
+    testLogging {
+        showStandardStreams = true
+        events 'passed', 'failed', 'skipped'
+    }
     ['live', 'model', 'ollamaHost', 'writeFixtures'].each { key ->
         def override = System.getProperty(key)
         if (override != null) {

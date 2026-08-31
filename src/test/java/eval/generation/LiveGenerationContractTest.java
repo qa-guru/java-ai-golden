@@ -9,6 +9,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
@@ -28,6 +29,10 @@ class LiveGenerationContractTest {
     @DisplayName("execute workflow then check golden")
     void executeThenCheck(GoldenCase row) throws Exception {
         String out = OllamaClient.chat(WorkflowPrompt.system(row), row.prompt());
+        Path liveOut = Path.of("build/live-out").resolve(row.id() + ".out.md");
+        Files.createDirectories(liveOut.getParent());
+        Files.writeString(liveOut, out, StandardCharsets.UTF_8);
+        System.out.println("===== LIVE " + row.id() + " =====\n" + out + "\n===== END " + row.id() + " =====");
         if ("true".equals(System.getProperty("writeFixtures"))) {
             var path = GoldenReader.evalDir().resolve("fixtures").resolve(row.id() + ".out.md");
             Files.writeString(path, out, StandardCharsets.UTF_8);
