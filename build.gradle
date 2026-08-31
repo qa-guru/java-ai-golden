@@ -31,4 +31,10 @@ test {
         }
     }
     systemProperty 'file.encoding', 'UTF-8'
+    ['live', 'model', 'ollamaHost', 'writeFixtures'].each { key ->
+        def override = System.getProperty(key)
+        if (override != null) {
+            systemProperty key, override
+        }
+    }
 }
