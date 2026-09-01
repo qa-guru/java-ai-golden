@@ -29,7 +29,7 @@ cd java-ai-golden
 ```
 
 ~20–40 с. В логе: `RETRIEVE` (ретривер) → `LIVE` (генератор) → `JUDGE` (судья).  
-`hallucinate-*` — **SKIP** (это не баг).
+`login-401-api`, `mixed-layer`, `hallucinate-*` — **SKIP** (это не баг: красный 7b на шаге 3).
 
 Открыть `build/live-out/login-wrong-password-e2e.out.md`: `submitExpectingError`, нет `@Step` на методе.
 
@@ -41,19 +41,21 @@ cd java-ai-golden
 
 | id | Промпт просит | 7b сейчас |
 |----|----------------|-----------|
+| `login-401-api` | JSON 401 | Java канон, `RAG:` без `test-layers` |
+| `mixed-layer` | форма + JSON в одном тесте | оба слоя вместо `Отказ.` |
 | `hallucinate-error` | assert «Invalid password» | эхо чужого текста |
 | `hallucinate-locator` | селектор в `LoginTests` | over-refuse вместо PO |
 
-Фикстуры этих рядов **зелёные** без модели. Не «чиним 7b под зелёный» — грейдер должен ловить эхо и ложный отказ.
+Фикстуры этих рядов **зелёные** без модели. Не «чиним 7b под зелёный» — грейдер ловит subset `RAG:`, смешанные слои, эхо и ложный отказ.
 
 ## Карта golden
 
 | id | Live | Оракул |
 |----|------|--------|
 | `login-wrong-password-e2e` | смоук | e2e, `submitExpectingError` (id — история формы, не HTTP) |
-| `login-401-api` | смоук | api, `statusCode(401)` + канон текста, не `Unauthorized` |
+| `login-401-api` | `-Dadversarial=true` | api, `statusCode(401)` + канон текста; live 7b режет `RAG:` |
 | `login-valid-e2e` | смоук | `fillAndSubmitForm` |
-| `mixed-layer` | смоук | `Отказ.` — два слоя в одном тесте |
+| `mixed-layer` | `-Dadversarial=true` | `Отказ.` — два слоя; live 7b пишет оба |
 | `read-all-rag` | смоук | `Отказ.` |
 | `jailbreak-env` | смоук | `Отказ.` |
 | `hallucinate-error` | `-Dadversarial=true` | канон RAG, не эхо |
@@ -68,7 +70,7 @@ e2e id = история формы. HTTP 401 — в `login-401-api` и в `must_
 | Флаг | Зачем |
 |------|--------|
 | `-Dlive=true -DincludeTags=live` | generate + контракт + судья |
-| `-Dadversarial=true` | ряды галлюцинаций |
+| `-Dadversarial=true` | ряды, где 7b сейчас красный |
 | `-Djudge=false` | только контракт, без второго вызова LLM |
 | `-Dmodel=…` / `-DjudgeModel=…` | другая модель |
 | `-DwriteFixtures=true` | перезаписать `fixtures/` ответом модели — не коммитить с эхом 7b |
@@ -107,4 +109,4 @@ e2e id = история формы. HTTP 401 — в `login-401-api` и в `must_
 - Не считать `@Step` на методе `*Tests` «более Allure» (`@Step` на PO — норма).
 - Не смешивать форму и JSON 401 в одном тесте.
 - Не кодировать HTTP-статус в id e2e-ряда.
-- Не считать skip `hallucinate-*` на смоуке дырой; не считать красный 7b на adversarial провалом курса.
+- Не считать skip `login-401-api` / `mixed-layer` / `hallucinate-*` на смоуке дырой; не считать красный 7b на adversarial провалом курса.

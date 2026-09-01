@@ -32,7 +32,7 @@ class LiveGenerationContractTest {
         if (row.expect().isAdversarial()) {
             Assumptions.assumeTrue(
                     "true".equals(System.getProperty("adversarial")),
-                    "hallucination rows: -Dadversarial=true");
+                    "adversarial 7b rows: -Dadversarial=true");
         }
         var built = WorkflowPrompt.build(row);
         String raw = OllamaClient.chat(built.system(), row.prompt());

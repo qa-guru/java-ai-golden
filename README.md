@@ -33,9 +33,9 @@ cd java-ai-golden
 
 - `GenerationContractTest` — фикстуры, без LLM.
 - `ContractAssertionsTest` / `JudgeParseTest` / `WorkflowPromptTest` — регрессии грейдера и промпта.
-- `LiveGenerationContractTest` — generate → контракт по **RAW** → `Judge` (вердикт в лог, `REJECTED` live не валит). Галлюцинации только с `-Dadversarial=true`.
+- `LiveGenerationContractTest` — generate → контракт по **RAW** → `Judge` (вердикт в лог, `REJECTED` live не валит). `login-401-api`, `mixed-layer`, `hallucinate-*` только с `-Dadversarial=true`.
 - `RetrieverTest` — jsonl `expect.rag` как оракул лексического ретривера, не как подстановка в промпт и не как assert генерации.
 - Судья по MODE: негатив формы, happy path, API.
 - Канон: лаборатория 36; JSON — не `Unauthorized`. e2e golden id — история формы (`login-wrong-password-e2e`), не HTTP 401.
 
-Красный демо офлайн: `@Step` на методе `*Tests` или `fillAndSubmitForm` в `login-wrong-password-e2e` фикстуре. Pack: `test-negative` в API `expect.rag` или «неуспешный» в `index:` у `po-fluent`. Adversarial live: эхо `Invalid password`, over-refuse селектора.
+Красный демо офлайн: `@Step` на методе `*Tests` или `fillAndSubmitForm` в `login-wrong-password-e2e` фикстуре. Pack: `test-negative` в API `expect.rag` или «неуспешный» в `index:` у `po-fluent`. Adversarial live: subset `RAG:` на api, оба слоя вместо `Отказ.`, эхо `Invalid password`, over-refuse селектора.
