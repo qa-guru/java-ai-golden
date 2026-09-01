@@ -29,10 +29,10 @@ class LiveGenerationContractTest {
     @MethodSource("golden")
     @DisplayName("execute workflow, contract, then judge")
     void executeThenCheck(GoldenCase row) throws Exception {
-        if (row.expect().isAdversarial()) {
+        if (row.expect().isRed()) {
             Assumptions.assumeTrue(
-                    "true".equals(System.getProperty("adversarial")),
-                    "adversarial 7b rows: -Dadversarial=true");
+                    "true".equals(System.getProperty("red")),
+                    "red 7b rows: -Dred=true");
         }
         var built = WorkflowPrompt.build(row);
         String raw = OllamaClient.chat(built.system(), row.prompt());

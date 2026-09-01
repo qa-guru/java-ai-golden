@@ -35,7 +35,7 @@ public record GoldenCase(
             List<String> rag,
             Boolean refuse,
             List<String> contains,
-            Boolean adversarial
+            Boolean red
     ) {
         public Expect {
             rag = rag == null ? List.of() : List.copyOf(rag);
@@ -46,8 +46,8 @@ public record GoldenCase(
             return Boolean.TRUE.equals(refuse);
         }
 
-        public boolean isAdversarial() {
-            return Boolean.TRUE.equals(adversarial);
+        public boolean isRed() {
+            return Boolean.TRUE.equals(red);
         }
     }
 }
