@@ -1,5 +1,7 @@
 # java-ai-golden
 
+Репозиторий: [qa-guru/java-ai-golden](https://github.com/qa-guru/java-ai-golden).
+
 **Mill занятия:** [START.md](START.md) — без модели, live смоук, красный 7b на adversarial.
 
 Отдельный слот **тестирования ИИ**, не ячейка пирамиды заметок и не папка внутри эталона / takeaway.
@@ -16,7 +18,8 @@
 ## Прогон
 
 ```bash
-cd projects/autotests-ai-multistack-home/java-ai-golden
+git clone https://github.com/qa-guru/java-ai-golden.git
+cd java-ai-golden
 ./gradlew test
 ./gradlew test -Dlive=true -DincludeTags=live
 ./gradlew test -Dlive=true -DincludeTags=live -Dadversarial=true

@@ -6,7 +6,8 @@
 Эталон Selenide и takeaway сюда не копировать. Java 21, Gradle Wrapper в этой папке. Live — локальный Ollama, модель `qwen2.5-coder:7b`.
 
 ```bash
-cd projects/autotests-ai-multistack-home/java-ai-golden
+git clone https://github.com/qa-guru/java-ai-golden.git
+cd java-ai-golden
 ```
 
 ## На камеру (~3 мин)
