@@ -10,6 +10,8 @@ index: [api, json, 401, rest, пароль, неверный, login]
 
 **id:** `test-api-layer`
 
+Related в этом задании: `test-layers`. Строка `RAG:` — оба id: `test-api-layer, test-layers`.
+
 Канон: `api/ApiTestBase.java`, `api/AuthApiClient.java`, `tests/api/AuthApiTests.java`.  
 `@Layer("api")` + `@Tag("api")`. Браузера нет.
 

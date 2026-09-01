@@ -49,6 +49,14 @@ class PackSkillContractTest {
     }
 
     @Test
+    @DisplayName("api chunk names related id for RAG citation (7b otherwise drops test-layers)")
+    void apiChunkCitesRelatedOnRagLine() {
+        String chunk = PackFiles.rag("test-api-layer");
+        assertTrue(chunk.contains("test-layers"), chunk);
+        assertTrue(chunk.contains("RAG:"), chunk);
+    }
+
+    @Test
     @DisplayName("login PO context keeps HomePage vs LoginPage split")
     void loginPoContext() {
         String ctx = PackFiles.read("context/login-po.md");
