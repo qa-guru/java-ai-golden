@@ -11,7 +11,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-final class PackFiles {
+public final class PackFiles {
 
     private static final Pattern YAML_ID = Pattern.compile("(?m)^id:\\s*(\\S+)");
     private static final Pattern FRONTMATTER = Pattern.compile("(?s)^---\\r?\\n(.*?)\\r?\\n---");
@@ -68,6 +68,10 @@ final class PackFiles {
             return yaml.group(1).strip();
         }
         throw new IllegalStateException("RAG chunk missing YAML id:");
+    }
+
+    public static List<String> chunkIds() {
+        return chunks().stream().map(RagChunk::id).toList();
     }
 
     static List<RagChunk> chunks() {

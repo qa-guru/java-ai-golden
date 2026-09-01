@@ -10,7 +10,7 @@ Mill занятия — [START.md](../../../../../START.md) в корне сло
 | Тест | Ловит |
 |------|--------|
 | `PackDietTest` | битый id, 0 или 5+ чанков, пустой `index:`, `related` на несуществующий файл |
-| `PackLayerIsolationTest` | UI-чанк в API-golden (`test-negative` → `submitExpectingError` в api) |
+| `PackLayerIsolationTest` | диета `retrieve(prompt)`: UI-цепь не в API, happy без `submitExpectingError`; skill не режется |
 | `PackSkillContractTest` | вырезанные якоря: отказ, lab 36, «можно @Step в тесте», over-refuse селектора |
 | `RetrieverTest` | ретривер ≠ golden; «Не e2e» не отфильтровало форму; отравленный `index` у `po-fluent` |
 
@@ -18,7 +18,8 @@ Mill занятия — [START.md](../../../../../START.md) в корне сло
 
 Красный демо офлайн:
 
-- в `golden-generation.jsonl` у `login-401-api` добавить rag-id `test-negative` — isolation;
+- в `golden-generation.jsonl` у `login-401-api` добавить rag-id `test-negative` — `RetrieverTest` (`expect.rag` ≠ retrieve);
 - в `po-fluent` `index:` дописать `неуспешный` — `RetrieverTest` poison.
+- isolation — диета ретривера, не live system: `related`/`index` API-чанка на UI-чанк → `submitExpectingError` в API-диете.
 
 Не копировать takeaway и не гонять Ollama здесь.

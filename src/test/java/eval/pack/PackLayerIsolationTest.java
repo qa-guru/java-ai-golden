@@ -15,37 +15,34 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class PackLayerIsolationTest {
 
     @Test
-    @DisplayName("API diet has JSON canon and no form-negative chain")
+    @DisplayName("API retrieve diet has JSON canon and no form-negative chain")
     void apiDietDoesNotLeakFormNegative() {
-        GoldenCase row = row("login-401-api");
-        String diet = PackFiles.diet(row.expect().rag());
+        String diet = PackFiles.diet(LexicalRetriever.retrieve(row("login-401-api").prompt()));
         assertTrue(diet.contains("Wrong login or password"), "API diet missing canon message");
         assertTrue(diet.contains("statusCode(401)") || diet.contains("401"), "API diet missing 401");
         assertFalse(
                 diet.contains("submitExpectingError"),
-                "API diet leaked submitExpectingError (UI chunk in api retriever)");
-        assertFalse(diet.contains("fillAndSubmitForm"), "API diet leaked fillAndSubmitForm");
+                "API retrieve diet leaked submitExpectingError");
+        assertFalse(diet.contains("fillAndSubmitForm"), "API retrieve diet leaked fillAndSubmitForm");
     }
 
     @Test
-    @DisplayName("form-negative diet contains the lab-36 chain")
+    @DisplayName("form-negative retrieve diet contains the lab-36 chain")
     void formNegativeDietHasExpectingError() {
-        GoldenCase row = row("login-wrong-password-e2e");
-        String diet = PackFiles.diet(row.expect().rag());
+        String diet = PackFiles.diet(LexicalRetriever.retrieve(row("login-wrong-password-e2e").prompt()));
         assertTrue(diet.contains("submitExpectingError"), "UI diet missing submitExpectingError");
         assertTrue(diet.contains("Wrong login or password"), "UI diet missing canon message");
         assertTrue(diet.contains("po-step") || diet.contains("@Step"), "UI diet missing po-step");
     }
 
     @Test
-    @DisplayName("happy-path diet has fillAndSubmitForm and not submitExpectingError")
+    @DisplayName("happy-path retrieve diet has fillAndSubmitForm and not submitExpectingError")
     void happyDietDoesNotLeakFormNegative() {
-        GoldenCase row = row("login-valid-e2e");
-        String diet = PackFiles.diet(row.expect().rag());
+        String diet = PackFiles.diet(LexicalRetriever.retrieve(row("login-valid-e2e").prompt()));
         assertTrue(diet.contains("fillAndSubmitForm"), "happy diet missing fillAndSubmitForm");
         assertFalse(
                 diet.contains("submitExpectingError"),
-                "happy diet leaked submitExpectingError");
+                "happy retrieve diet leaked submitExpectingError");
     }
 
     private static GoldenCase row(String id) {

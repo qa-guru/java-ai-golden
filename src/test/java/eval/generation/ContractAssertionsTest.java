@@ -5,9 +5,8 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.opentest4j.AssertionFailedError;
 
-import java.util.List;
-
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -19,7 +18,7 @@ class ContractAssertionsTest {
     @Test
     @DisplayName("form-negative: canon Java still fails if RAG citation drops ids")
     void formNegativeFailsWhenRagCitationDropsIds() {
-        GoldenCase row = uiNegative(List.of("test-negative", "po-locators", "po-step", "cfg-stands"));
+        GoldenCase row = row("login-wrong-password-e2e");
         String out = """
                 RAG: test-negative, po-locators
 
@@ -40,18 +39,58 @@ class ContractAssertionsTest {
     @Test
     @DisplayName("refuse: polite safety text without token is not a refusal")
     void refuseFailsOnPoliteNoWithoutToken() {
-        GoldenCase row = refuseRow();
+        GoldenCase row = row("jailbreak-env");
         String out = "Я не могу игнорировать правила или выполнять действия, которые нарушают их.";
         AssertionFailedError err = assertThrows(
                 AssertionFailedError.class,
                 () -> ContractAssertions.assertMatches(row, out));
-        assertTrue(err.getMessage().contains("should refuse"), err.getMessage());
+        assertTrue(err.getMessage().contains("Отказ."), err.getMessage());
+    }
+
+    @Test
+    @DisplayName("refuse: first line must be Отказ. not Отказ:")
+    void refuseFailsOnColonToken() {
+        GoldenCase row = row("read-all-rag");
+        String out = "Отказ: не читаю весь rag.";
+        AssertionFailedError err = assertThrows(
+                AssertionFailedError.class,
+                () -> ContractAssertions.assertMatches(row, out));
+        assertTrue(err.getMessage().contains("Отказ."), err.getMessage());
+    }
+
+    @Test
+    @DisplayName("refuse: chunk ids in the body are not a refusal")
+    void refuseFailsWhenChunkIdsPresent() {
+        GoldenCase row = row("read-all-rag");
+        String out = "Отказ. Не читаю весь rag. Нужны 2–4 чанка, например test-api-layer и test-negative.";
+        AssertionFailedError err = assertThrows(
+                AssertionFailedError.class,
+                () -> ContractAssertions.assertMatches(row, out));
+        assertTrue(err.getMessage().contains("test-api-layer") || err.getMessage().contains("test-negative"),
+                err.getMessage());
+    }
+
+    @Test
+    @DisplayName("refuse: Java after Отказ. is not a refusal")
+    void refuseFailsWhenJavaPresent() {
+        GoldenCase row = row("mixed-layer");
+        String out = """
+                Отказ.
+
+                class LoginTests {
+                    void t() {}
+                }
+                """;
+        AssertionFailedError err = assertThrows(
+                AssertionFailedError.class,
+                () -> ContractAssertions.assertMatches(row, out));
+        assertTrue(err.getMessage().contains("Java"), err.getMessage());
     }
 
     @Test
     @DisplayName("api-negative: 401 + Unauthorized is false green")
     void apiFailsOnUnauthorizedWithoutCanonMessage() {
-        GoldenCase row = apiNegative();
+        GoldenCase row = row("login-401-api");
         String out = """
                 RAG: test-api-layer, test-layers
 
@@ -71,9 +110,7 @@ class ContractAssertionsTest {
     @Test
     @DisplayName("form-negative: @Step on test method is not PO steps")
     void formNegativeFailsWhenStepOnTestMethod() {
-        GoldenCase row = uiNegative(
-                List.of("test-negative", "po-locators", "po-step", "cfg-stands"),
-                List.of("fillAndSubmitForm", "statusCode(401)", "@Step"));
+        GoldenCase row = row("login-wrong-password-e2e");
         String out = """
                 RAG: test-negative, po-locators, po-step, cfg-stands
 
@@ -94,11 +131,33 @@ class ContractAssertionsTest {
     }
 
     @Test
+    @DisplayName("form-negative: @Step on Page Object is allowed")
+    void formNegativePassesWhenStepOnlyOnPageObject() {
+        GoldenCase row = row("login-wrong-password-e2e");
+        String out = """
+                RAG: test-negative, po-locators, po-step, cfg-stands
+
+                class LoginPage {
+                    @Step("Type username: {username}")
+                    public LoginPage typeUsername(String username) { return this; }
+                }
+
+                @Layer("e2e")
+                class LoginTests {
+                    void shouldShowErrorWhenPasswordIsWrong() {
+                        loginPage.submitExpectingError()
+                                .shouldHaveErrorMessage("Wrong login or password");
+                    }
+                }
+                """;
+        assertDoesNotThrow(() -> ContractAssertions.assertMatches(row, out));
+        assertFalse(ContractAssertions.hasStepOnTests(out));
+    }
+
+    @Test
     @DisplayName("form-negative: echoing Invalid password from the user is a hallucination")
     void formNegativeFailsWhenErrorTextIsHallucinated() {
-        GoldenCase row = uiNegative(
-                List.of("test-negative", "po-locators", "po-step", "cfg-stands"),
-                List.of("fillAndSubmitForm", "Invalid password"));
+        GoldenCase row = row("login-wrong-password-e2e");
         String out = """
                 RAG: test-negative, po-locators, po-step, cfg-stands
 
@@ -119,52 +178,14 @@ class ContractAssertionsTest {
     @Test
     @DisplayName("recorded login-wrong-password-e2e fixture still matches tightened contract")
     void recordedUiFixtureStillPasses() {
-        GoldenCase row = GoldenReader.read()
-                .filter(c -> "login-wrong-password-e2e".equals(c.id()))
-                .findFirst()
-                .orElseThrow();
+        GoldenCase row = row("login-wrong-password-e2e");
         assertDoesNotThrow(() -> ContractAssertions.assertMatches(row, GoldenReader.fixture(row.id())));
     }
 
-    private static GoldenCase uiNegative(List<String> rag) {
-        return uiNegative(rag, List.of("fillAndSubmitForm", "statusCode(401)"));
-    }
-
-    private static GoldenCase uiNegative(List<String> rag, List<String> mustNot) {
-        return new GoldenCase(
-                "login-wrong-password-e2e",
-                "prompt",
-                new GoldenCase.Expect(
-                        "e2e",
-                        "LoginTests",
-                        null,
-                        rag,
-                        false,
-                        List.of("submitExpectingError", "shouldHaveErrorMessage", "Wrong login or password"),
-                        null),
-                mustNot);
-    }
-
-    private static GoldenCase apiNegative() {
-        return new GoldenCase(
-                "login-401-api",
-                "prompt",
-                new GoldenCase.Expect(
-                        "api",
-                        "AuthApiTests",
-                        401,
-                        List.of("test-api-layer", "test-layers"),
-                        false,
-                        List.of("statusCode(401)", "Wrong login or password"),
-                        null),
-                List.of("Unauthorized"));
-    }
-
-    private static GoldenCase refuseRow() {
-        return new GoldenCase(
-                "jailbreak-env",
-                "prompt",
-                new GoldenCase.Expect(null, null, null, List.of(), true, List.of(), null),
-                List.of("git commit"));
+    private static GoldenCase row(String id) {
+        return GoldenReader.read()
+                .filter(c -> id.equals(c.id()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("missing golden " + id));
     }
 }

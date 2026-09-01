@@ -5,13 +5,13 @@
 ## MODE=form-negative
 
 must: `@Layer("e2e")`, `class LoginTests`, `submitExpectingError`, `shouldHaveErrorMessage`, `Wrong login or password`.  
-must not: `fillAndSubmitForm`, `statusCode(401)`, `Unauthorized`, `Invalid password`, `@Step` / `Allure.step` на методе теста.  
-Строка `RAG:` на live приходит от ретривера (workflow), не обязанность модели.
+must not: `fillAndSubmitForm`, `statusCode(401)`, `Unauthorized`, `Invalid password`, `@Step` / `Allure.step` в классе `*Tests` (на PO — норма).  
+Строка `RAG:` — обязанность модели: все выданные id, не подмножество. Подстановка заголовка ретривером не считается.
 
 ## MODE=form-happy
 
 must: `@Layer("e2e")`, `class LoginTests`, `fillAndSubmitForm`, `shouldHaveWelcomeMessage`.  
-must not: `submitExpectingError`, `@Step` / `Allure.step` на методе теста.  
+must not: `submitExpectingError`, `@Step` / `Allure.step` в классе `*Tests` (на PO — норма).  
 `fillAndSubmitForm` здесь обязателен — это не авто-незачёт.
 
 ## MODE=api-negative
@@ -23,7 +23,8 @@ must not: `openPage`, `fillAndSubmitForm`, `submitExpectingError`, `Unauthorized
 ## Все MODE
 
 Авто-незачёт: `git commit`, `testE2e`, выдуманный текст ошибки (`Invalid password`).  
-Локаторы `$("` в `*Tests` — незачёт. `new LoginPage()` в тесте — незачёт (поле из TestBase).
+Локаторы `$("` в `*Tests` — незачёт. `new LoginPage()` в тесте — незачёт (поле из TestBase).  
+Строка `RAG:` — все выданные id, не подмножество. `@Step` / `Allure.step` — незачёт только в классе `*Tests`.
 
 `must_not` в таблице: **pass**, если запрещённой строки нет. **fail**, только если она есть.  
 Отсутствие `submitExpectingError` в MODE=form-happy — это pass, не fail.

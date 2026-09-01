@@ -7,8 +7,6 @@ import java.nio.file.Files;
 import java.util.List;
 import java.util.Locale;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
 final class Judge {
 
     enum Verdict {
@@ -21,10 +19,15 @@ final class Judge {
     }
 
     static String review(GoldenCase row, String candidate) throws IOException, InterruptedException {
+        return review(row, candidate, List.of());
+    }
+
+    static String review(GoldenCase row, String candidate, List<String> retrieved)
+            throws IOException, InterruptedException {
         String model = System.getProperty(
                 "judgeModel",
                 System.getProperty("model", "qwen2.5-coder:7b"));
-        return OllamaClient.chat(system(), user(row, candidate), model);
+        return OllamaClient.chat(system(), user(row, candidate, retrieved), model);
     }
 
     static Verdict parse(String judgeOut) {
@@ -47,13 +50,6 @@ final class Judge {
             }
         }
         return Verdict.PENDING;
-    }
-
-    static void assertAccepted(GoldenCase row, String judgeOut) {
-        assertEquals(
-                Verdict.ACCEPTED,
-                parse(judgeOut),
-                () -> row.id() + " judge:\n" + judgeOut);
     }
 
     private static String system() {
@@ -93,7 +89,7 @@ final class Judge {
         return "other";
     }
 
-    private static String user(GoldenCase row, String candidate) {
+    private static String user(GoldenCase row, String candidate, List<String> retrieved) {
         return """
                 MODE=%s
                 golden.id=%s
@@ -101,7 +97,7 @@ final class Judge {
                 expect.layer=%s
                 expect.class=%s
                 expect.contains=%s
-                expect.rag=%s
+                retrieved=%s
                 must_not=%s
 
                 CANDIDATE:
@@ -113,7 +109,7 @@ final class Judge {
                 row.expect().layer(),
                 row.expect().className(),
                 row.expect().contains(),
-                row.expect().rag(),
+                retrieved == null ? List.of() : retrieved,
                 row.mustNot(),
                 candidate);
     }

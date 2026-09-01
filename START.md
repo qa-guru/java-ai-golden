@@ -59,7 +59,8 @@ cd java-ai-golden
 | `hallucinate-error` | `-Dadversarial=true` | канон RAG, не эхо |
 | `hallucinate-locator` | `-Dadversarial=true` | PO, не `$` |
 
-jsonl `expect.rag` — оракул **ретривера** (`RetrieverTest`), не подстановка в промпт. Заголовок `RAG:` на live пишет workflow (`RagCite`), не модель.  
+jsonl `expect.rag` — оракул **ретривера** (`RetrieverTest`), не подстановка в промпт и не assert генерации.  
+Заголовок `RAG:` пишет модель; подмножество выданных id → fail. Live/judge грейдят **RAW**.  
 e2e id = история формы. HTTP 401 — в `login-401-api` и в `must_not` формы, не в имени UI-ряда.
 
 ## Флаги
@@ -85,16 +86,17 @@ e2e id = история формы. HTTP 401 — в `login-401-api` и в `must_
 | `build/live-out/<id>.judge.md` | вердикт судьи |
 
 Два оракула: **programmatic grader** → **LLM-as-a-judge** (только live, не-отказы).  
-Грейдер тоже тестируем: вежливый «не могу» ≠ отказ; `401` + `Unauthorized` ≠ канон; `@Step` на `*Tests` ≠ Allure.
+Грейдер тоже тестируем: вежливый «не могу» ≠ отказ; `401` + `Unauthorized` ≠ канон; `@Step` на `*Tests` ≠ Allure; первая строка отказа — `Отказ.`, без Java и id чанков.
 
-Судья: `VERDICT: ПРИНЯТО|НЕ ПРИНЯТО|ОЖИДАЕТ`. Зелёный контракт при красном судье = слой угадан, в продукт не влить — успех eval.
+Судья: `VERDICT: ПРИНЯТО|НЕ ПРИНЯТО|ОЖИДАЕТ`. Live не падает на `REJECTED`: зелёный контракт при красном судье = слой угадан, в продукт не влить — успех eval.
 
 ## Pack, если осталась минута
 
 Офлайн, без Ollama. Подробности: [eval/pack/README.md](src/test/java/eval/pack/README.md).
 
-- в jsonl у `login-401-api` добавить rag-id `test-negative` — isolation;
+- в jsonl у `login-401-api` добавить rag-id `test-negative` — `RetrieverTest`;
 - в `po-fluent` `index:` дописать `неуспешный` — poison ретривера.
+- isolation — диета `retrieve(prompt)`, не live system; skill не резать.
 
 ## Не делать
 
@@ -102,7 +104,7 @@ e2e id = история формы. HTTP 401 — в `login-401-api` и в `must_
 - Не ждать, что live вльёт файл в пирамиду.
 - Не гонять live+judge на каждый PR. CI — шаг 1.
 - Не принимать `Unauthorized` / `Invalid password` как «почти канон».
-- Не считать `@Step` на методе `*Tests` «более Allure».
+- Не считать `@Step` на методе `*Tests` «более Allure» (`@Step` на PO — норма).
 - Не смешивать форму и JSON 401 в одном тесте.
 - Не кодировать HTTP-статус в id e2e-ряда.
 - Не считать skip `hallucinate-*` на смоуке дырой; не считать красный 7b на adversarial провалом курса.
