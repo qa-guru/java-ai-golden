@@ -62,5 +62,5 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - name: Nightly eval
-        run: ./gradlew evalNightly --console=plain
+      - name: Nightly eval vs committed 5-rep+red baseline
+        run: ./gradlew evalNightlyRegression --console=plain

@@ -40,12 +40,13 @@ public final class RunComparator {
                     "COMPARISON INVALID: packDatasetVersion mismatch: "
                             + baseline.packDatasetVersion() + " vs " + candidate.packDatasetVersion());
         }
+        String protocol = protocolMismatch(baseline, candidate);
+        if (protocol != null) {
+            return ComparisonResult.invalid(protocol);
+        }
         List<String> configDiffs = new ArrayList<>();
         if (baseline.configuration() != null) {
             configDiffs.addAll(baseline.configuration().differences(candidate.configuration()));
-        }
-        if (!sameRepetitions(baseline, candidate)) {
-            configDiffs.add("repetitions differ; attempt counts are not comparable as a fair benchmark");
         }
 
         List<MetricDelta> metrics = List.of(
@@ -78,11 +79,36 @@ public final class RunComparator {
                 gate);
     }
 
-    private static boolean sameRepetitions(EvalRun baseline, EvalRun candidate) {
-        if (baseline.configuration() == null || candidate.configuration() == null) {
-            return true;
+    /**
+     * Live 1-shot (skip red) and nightly (5 reps + red) are different protocols.
+     * Null configuration on a legacy run is not treated as a mismatch.
+     */
+    public static String protocolMismatch(EvalRun baseline, EvalRun candidate) {
+        if (candidate == null || candidate.configuration() == null) {
+            return null;
         }
-        return baseline.configuration().repetitions() == candidate.configuration().repetitions();
+        return protocolMismatch(
+                baseline,
+                candidate.configuration().repetitions(),
+                candidate.configuration().includeRed());
+    }
+
+    public static String protocolMismatch(EvalRun baseline, int repetitions, boolean includeRed) {
+        if (baseline == null || baseline.configuration() == null) {
+            return null;
+        }
+        var c = baseline.configuration();
+        if (c.repetitions() != repetitions) {
+            return "COMPARISON INVALID: repetitions mismatch: "
+                    + c.repetitions() + " vs " + repetitions
+                    + " (live 1-shot and nightly 5-rep are different protocols)";
+        }
+        if (c.includeRed() != includeRed) {
+            return "COMPARISON INVALID: includeRed mismatch: "
+                    + c.includeRed() + " vs " + includeRed
+                    + " (do not compare skip-red live to --red nightly)";
+        }
+        return null;
     }
 
     private static MetricDelta latencyDelta(EvalRun baseline, EvalRun candidate) {

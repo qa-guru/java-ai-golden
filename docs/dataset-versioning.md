@@ -11,7 +11,15 @@ Eval results **must** carry `datasetVersion` and `packDatasetVersion`. You canno
 
 Pack-only wording that does not change retrieve sets or contracts: bump **`pack-v1` only**. Anything that changes `expect.rag`, `must_not`, refuse behaviour, or case ids: bump **`generation-v1`** (and usually pack if the diet moved).
 
-`RunComparator` is `COMPARISON INVALID` when generation versions differ, or when **both** runs have a pack version and they differ. A legacy baseline with `packDatasetVersion: null` still compares.
+`RunComparator` is `COMPARISON INVALID` when generation versions differ, when **both** runs have a pack version and they differ, or when live **protocol** differs (`repetitions` or `includeRed`). A legacy baseline with `packDatasetVersion: null` still compares on pack; missing `configuration` skips the protocol check.
+
+Live snapshots (same `generation-v1`, not interchangeable):
+
+| File | Protocol |
+|---|---|
+| `baselines/generation-v1.json` | fixtures, 1 attempt, no LLM |
+| `baselines/live-generation-v1.json` | model, skip red, 1 attempt |
+| `baselines/nightly-generation-v1.json` | model, `--red`, 5 attempts |
 
 ## When to bump generation
 
@@ -38,5 +46,5 @@ Increment `pack-v1` → `pack-v2` if you change RAG chunk ids, `related`/`index`
 3. Re-record fixtures only with `-DwriteFixtures=true` after you have **read** the output. Do not commit 7b echo.
 4. Re-run `./gradlew test evalDeterministic`.
 5. Write a **new** fixture baseline (`baselines/generation-v2.json`) via `-DsaveBaseline=…`. Do not compare v2 runs to `generation-v1.json`.
-6. Re-capture live baseline separately if pack/generation oracles changed.
+6. Re-capture **live** (`live-generation-v1.json`) and **nightly** (`nightly-generation-v1.json`) separately if pack/generation oracles changed. Do not copy one file onto the other.
 7. Update START.md / README tables if ids or mill steps changed.

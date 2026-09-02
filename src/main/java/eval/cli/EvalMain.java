@@ -77,6 +77,14 @@ public final class EvalMain {
                     "COMPARISON INVALID: live regression needs a live baseline, not a fixture snapshot");
             return ExitCode.COMPARISON_INVALID;
         }
+        if (config.usesModel()) {
+            String protocol = RunComparator.protocolMismatch(
+                    baseline, config.repetitions(), config.includeRed());
+            if (protocol != null) {
+                System.err.println(protocol);
+                return ExitCode.COMPARISON_INVALID;
+            }
+        }
         return runOnce(config, baseline);
     }
 

@@ -99,11 +99,27 @@ tasks.register('evalLive', JavaExec) {
 
 tasks.register('evalNightly', JavaExec) {
     group = 'eval'
-    description = 'Full live eval: red rows, repetitions, optional --gate'
+    description = 'Full live eval: red rows, 5 repetitions, no gate (capture / report)'
     classpath = evalClasspath
     mainClass = 'eval.cli.EvalMain'
     workingDir = layout.projectDirectory
     args '--mode=live', '--red', '--repetitions=5', '--artifacts=always'
+    ollamaProps.each { key ->
+        def override = System.getProperty(key)
+        if (override != null) {
+            systemProperty key, override
+        }
+    }
+}
+
+tasks.register('evalNightlyRegression', JavaExec) {
+    group = 'eval'
+    description = 'Compare nightly protocol (red, 5 reps) to baselines/nightly-generation-v1.json'
+    classpath = evalClasspath
+    mainClass = 'eval.cli.EvalMain'
+    workingDir = layout.projectDirectory
+    args '--mode=regression', '--live', '--red', '--repetitions=5', '--artifacts=always', '--gate',
+            '--baseline=baselines/nightly-generation-v1.json'
     ollamaProps.each { key ->
         def override = System.getProperty(key)
         if (override != null) {

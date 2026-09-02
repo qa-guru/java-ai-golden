@@ -24,6 +24,7 @@ import eval.provider.ModelResponse;
 import eval.provider.ModelRunner;
 import eval.provider.ModelRunners;
 import eval.comparison.QualityGate;
+import eval.comparison.RunComparator;
 import eval.reporting.ReportIo;
 
 import java.nio.charset.StandardCharsets;
@@ -125,6 +126,10 @@ public final class EvalExecutor {
             EvalRun baseline = loadBaselineIfPresent(config);
             if (config.usesModel() && !isModelSnapshot(baseline)) {
                 gate = QualityGateResult.skipped("live quality gate needs a live baseline file");
+            } else if (config.usesModel()
+                    && RunComparator.protocolMismatch(baseline, config.repetitions(), config.includeRed()) != null) {
+                gate = QualityGateResult.skipped(
+                        "live quality gate needs a matching protocol baseline (repetitions, includeRed)");
             } else {
                 gate = QualityGate.evaluate(draft, config.thresholds(), baseline);
             }

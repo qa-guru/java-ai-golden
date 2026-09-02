@@ -81,9 +81,9 @@ Fair comparison requires:
 1. Same `datasetVersion`
 2. Same case ids (union reported; extras are ADDED/REMOVED)
 3. Same graders / thresholds
-4. Same `repetitions` (otherwise config diff is listed; do not call it a fair benchmark)
+4. Same `repetitions` and `includeRed` (live 1-shot vs nightly 5-rep+red → `COMPARISON INVALID`)
 
-Mismatch of dataset version → `COMPARISON INVALID`.
+Mismatch of dataset version, pack version (when both set), or live protocol → `COMPARISON INVALID`.
 
 ## Regression
 
@@ -105,6 +105,8 @@ Two rule families, both optional per metric:
 Gate fail → exit 2. Does not rewrite metrics.
 
 Deterministic PR gate uses 100% / 0% hallucination on **fixtures**. That rejects a broken golden or grader, not a weak 7b.
+
+Live 1-shot and nightly use the same `liveThresholds` delta, but **different baseline files**. Mixing protocols is `COMPARISON INVALID`, not a percentage.
 
 ## Why contract outranks the judge
 

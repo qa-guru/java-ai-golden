@@ -176,9 +176,16 @@ Live baseline `baselines/live-generation-v1.json` is a **model** snapshot (non-r
 ./gradlew evalLiveRegression
 ```
 
-Live gate uses `liveThresholds.allowedRegression` on **hard** rates (overall, contract, retrieval, …). Judge accept rate is reported but **not** in the delta gate (soft, mill: REJECT does not fail live).
+Nightly baseline `baselines/nightly-generation-v1.json` is a **different protocol**: all 8 rows including red, 5 attempts. Do not compare it to the 1-shot live file (`repetitions` / `includeRed` mismatch → `COMPARISON INVALID`). Capture:
 
-Do not treat fixture 100% as live quality.
+```bash
+./gradlew evalNightly -DsaveBaseline=baselines/nightly-generation-v1.json
+./gradlew evalNightlyRegression
+```
+
+Live and nightly gates use `liveThresholds.allowedRegression` on **hard** rates (overall, contract, retrieval, …). Judge accept rate is reported but **not** in the delta gate (soft, mill: REJECT does not fail live).
+
+Do not treat fixture 100% as live quality. The committed nightly snapshot is **25/40** on `qwen2.5-coder:7b` (red rows `hallucinate-*` and `mixed-layer` failed all 5 attempts; hallucination rate 10/10). That is the 7b picture, not a bug in the gate.
 
 ## Providers
 
@@ -218,7 +225,7 @@ Statuses: `PASS` | `FAIL` | `SKIPPED` (red rows without `--red`) | `ERROR` (infr
 |---|---|---|
 | PR | `./gradlew test` then `./gradlew evalDeterministic` then `./gradlew evalRegression` | no |
 | Merge / limited live | `./gradlew evalLive` then `./gradlew evalLiveRegression` | yes, skips `red` rows |
-| Nightly | `./gradlew evalNightly` (`--red --repetitions=5`) | yes, full |
+| Nightly | `./gradlew evalNightlyRegression` (red, 5 reps, vs `baselines/nightly-generation-v1.json`) | yes, full |
 
 Do not run full live+judge on every PR.
 
@@ -265,7 +272,8 @@ Live (local Ollama, default `qwen2.5-coder:7b`):
 ./gradlew test -Dlive=true -DincludeTags=live          # mill JUnit
 ./gradlew evalLive                                      # pipeline, skip red
 ./gradlew evalLive -Dred=true                           # include mixed-layer / hallucinate-*
-./gradlew evalNightly                                   # 5 reps + red
+./gradlew evalNightly                                   # 5 reps + red, no gate (capture)
+./gradlew evalNightlyRegression                         # delta vs baselines/nightly-generation-v1.json
 ./gradlew evalLiveRegression                            # delta vs baselines/live-generation-v1.json
 ```
 
@@ -281,4 +289,4 @@ Mill camera flags are unchanged: `-Dlive=true -DincludeTags=live`, `-Dred=true`,
 
 **Limited live:** `./gradlew evalLive` — five non-red goldens, one attempt, judge on. Then `evalLiveRegression` against the committed live baseline.
 
-**Full / nightly:** `./gradlew evalNightly` — all rows including red, `repetitions=5`, artifacts always. Do not lower `liveThresholds` to paint 7b green.
+**Full / nightly:** `./gradlew evalNightly` to capture; `evalNightlyRegression` against `baselines/nightly-generation-v1.json`. Same 7b, different protocol (red + 5 reps). Do not lower `liveThresholds` to paint 7b green.

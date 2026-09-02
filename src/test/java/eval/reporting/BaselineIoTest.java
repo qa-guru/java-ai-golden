@@ -39,6 +39,30 @@ class BaselineIoTest {
         assertTrue(run.metrics().overallPassRate().defined());
         assertEquals(1.0, run.metrics().overallPassRate().value(), 1e-12);
         assertEquals("LIVE", run.configuration().mode());
+        assertEquals(1, run.configuration().repetitions());
+        assertEquals(false, run.configuration().includeRed());
+        assertEquals("ollama", run.configuration().provider());
+    }
+
+    @Test
+    void committedNightlyBaselineIsReadable() {
+        EvalRun run = ReportIo.readRun(Path.of("baselines/nightly-generation-v1.json"));
+        assertEquals("generation-v1", run.datasetVersion());
+        assertEquals("pack-v1", run.packDatasetVersion());
+        assertEquals(8, run.casesTotal());
+        assertEquals(5, run.casesPassed());
+        assertEquals(3, run.casesFailed());
+        assertEquals(0, run.casesSkipped());
+        assertEquals(0, run.casesError());
+        assertEquals(40, run.attemptsTotal());
+        assertEquals(25, run.attemptsPassed());
+        assertEquals(15, run.attemptsFailed());
+        assertEquals(0.625, run.metrics().overallPassRate().value(), 1e-12);
+        assertEquals(10, run.metrics().hallucinationRate().hits());
+        assertEquals(10, run.metrics().hallucinationRate().total());
+        assertEquals("LIVE", run.configuration().mode());
+        assertEquals(5, run.configuration().repetitions());
+        assertEquals(true, run.configuration().includeRed());
         assertEquals("ollama", run.configuration().provider());
     }
 }

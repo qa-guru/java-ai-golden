@@ -118,4 +118,4 @@ e2e id = история формы. HTTP 401 — в `login-401-api` и в `must_
 ./gradlew test evalDeterministic evalRegression
 ```
 
-`evalDeterministic` = 100% по **фикстурам**, не оценка живой 7b. Live: `./gradlew evalLive` / `evalLiveRegression` / `evalNightly`.
+`evalDeterministic` = 100% по **фикстурам**, не оценка живой 7b. Live 1-shot: `evalLive` / `evalLiveRegression`. Nightly (red + 5 попыток): `evalNightly` / `evalNightlyRegression` — другой протокол, другой baseline.

@@ -132,6 +132,39 @@ class EvalExecutorTest {
         assertEquals(ExitCode.COMPARISON_INVALID, code);
     }
 
+    @Test
+    void nightlyProtocolAgainstLiveBaselineIsInvalid() {
+        int code = EvalMain.run(new String[]{
+                "--mode=regression",
+                "--live",
+                "--red",
+                "--repetitions=5",
+                "--judge=false",
+                "--baseline=baselines/live-generation-v1.json",
+                "--output=" + tmp
+        });
+        assertEquals(ExitCode.COMPARISON_INVALID, code);
+    }
+
+    @Test
+    void liveGateAgainstMismatchedProtocolBaselineIsSkipped() {
+        EvalConfig config = EvalConfig.resolve(new String[]{
+                "--mode=live",
+                "--red",
+                "--repetitions=5",
+                "--judge=false",
+                "--gate",
+                "--baseline=baselines/live-generation-v1.json",
+                "--output=" + tmp,
+                "--artifacts=never"
+        });
+        ModelRunner runner = (system, user, model) -> new ModelResponse(
+                fixtureFor(user), TokenUsage.of(1, 1), 8);
+        EvalRun run = new EvalExecutor(config, runner).execute();
+        assertEquals("SKIPPED", run.qualityGate().verdict());
+        assertTrue(run.qualityGate().passed());
+    }
+
     private static String fixtureFor(String user) {
         for (var row : GoldenReader.loadAll()) {
             if (user.contains("golden.id=" + row.id()) || user.equals(row.prompt())) {

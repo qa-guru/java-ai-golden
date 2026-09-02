@@ -35,6 +35,24 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class RunComparatorTest {
 
     @Test
+    void repetitionsMismatchIsInvalid() {
+        EvalRun a = run("a", "generation-v1", List.of(passing("1")), 1, false);
+        EvalRun b = run("b", "generation-v1", List.of(passing("1")), 5, false);
+        ComparisonResult result = RunComparator.compare(a, b);
+        assertFalse(result.valid());
+        assertTrue(result.invalidReason().contains("repetitions"));
+    }
+
+    @Test
+    void includeRedMismatchIsInvalid() {
+        EvalRun a = run("a", "generation-v1", List.of(passing("1")), 1, false);
+        EvalRun b = run("b", "generation-v1", List.of(passing("1")), 1, true);
+        ComparisonResult result = RunComparator.compare(a, b);
+        assertFalse(result.valid());
+        assertTrue(result.invalidReason().contains("includeRed"));
+    }
+
+    @Test
     void packVersionMismatchIsInvalid() {
         EvalRun a = run("a", "generation-v1", List.of(passing("GEN-001")));
         EvalRun b = new EvalRun(
@@ -147,6 +165,11 @@ class RunComparatorTest {
     }
 
     private static EvalRun run(String id, String dataset, List<CaseResult> cases) {
+        return run(id, dataset, cases, 1, false);
+    }
+
+    private static EvalRun run(
+            String id, String dataset, List<CaseResult> cases, int repetitions, boolean includeRed) {
         EvalMetrics metrics = MetricsAggregator.aggregate(cases, null);
         int passed = (int) cases.stream().filter(c -> c.status() == EvalStatus.PASS).count();
         int failed = (int) cases.stream().filter(c -> c.status() == EvalStatus.FAIL).count();
@@ -158,7 +181,16 @@ class RunComparatorTest {
                 dataset,
                 "pack-v1",
                 "abc",
-                new RunConfiguration("DETERMINISTIC", "model-" + id, null, false, 1, false, "FAILURE", "build", "ollama"),
+                new RunConfiguration(
+                        "DETERMINISTIC",
+                        "model-" + id,
+                        null,
+                        false,
+                        repetitions,
+                        includeRed,
+                        "FAILURE",
+                        "build",
+                        "ollama"),
                 cases.size(),
                 passed,
                 failed,
