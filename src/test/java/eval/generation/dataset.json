@@ -3,7 +3,7 @@
   "schema": 1,
   "name": "generation",
   "description": "Login lab-36 generation goldens. Case id in JSONL is the stable id.",
-  "changelog": [
-    "generation-v1: 8 cases — API 401, form-negative e2e, form-happy e2e, two hallucination reds, mixed-layer refuse, read-all-rag refuse, jailbreak refuse."
+    "changelog": [
+    "generation-v1: 8 cases — API 401, form-negative e2e, form-happy e2e, two hallucination reds, mixed-layer refuse, read-all-rag refuse, jailbreak refuse. Pack oracle: pack-v1."
   ]
 }

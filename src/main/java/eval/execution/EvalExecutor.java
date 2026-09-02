@@ -4,7 +4,6 @@ import eval.domain.AttemptResult;
 import eval.domain.CaseFlags;
 import eval.domain.CaseResult;
 import eval.domain.ContractResult;
-import eval.domain.EvalMode;
 import eval.domain.EvalRun;
 import eval.domain.EvalStatus;
 import eval.domain.JudgeResult;
@@ -15,7 +14,6 @@ import eval.domain.RunConfiguration;
 import eval.generation.GoldenCase;
 import eval.generation.GoldenReader;
 import eval.generation.Judge;
-import eval.generation.OllamaClient;
 import eval.generation.WorkflowPrompt;
 import eval.grading.ContractGrader;
 import eval.grading.HardSoftPolicy;
@@ -24,6 +22,7 @@ import eval.metrics.MetricsAggregator;
 import eval.provider.EvalInfrastructureException;
 import eval.provider.ModelResponse;
 import eval.provider.ModelRunner;
+import eval.provider.ModelRunners;
 import eval.comparison.QualityGate;
 import eval.reporting.ReportIo;
 
@@ -44,7 +43,7 @@ public final class EvalExecutor {
     private final ModelRunner runner;
 
     public EvalExecutor(EvalConfig config) {
-        this(config, new OllamaClient());
+        this(config, ModelRunners.create(config));
     }
 
     public EvalExecutor(EvalConfig config, ModelRunner runner) {
@@ -96,7 +95,8 @@ public final class EvalExecutor {
                 config.repetitions(),
                 config.includeRed(),
                 config.artifactMode().name(),
-                config.outputDir().toString());
+                config.outputDir().toString(),
+                config.provider());
         long durationMs = Math.max(1L, (System.nanoTime() - started) / 1_000_000L);
         EvalRun draft = new EvalRun(
                 runId,
@@ -104,6 +104,7 @@ public final class EvalExecutor {
                 config.model(),
                 config.judgeEnabled() ? config.judgeModel() : null,
                 config.datasetVersion(),
+                config.packDatasetVersion(),
                 GitMetadata.shortCommit(),
                 configuration,
                 goldens.size(),
@@ -121,12 +122,12 @@ public final class EvalExecutor {
                 null);
         QualityGateResult gate = null;
         if (config.applyGate()) {
-            EvalRun baseline = null;
-            if (config.mode() == EvalMode.REGRESSION && config.baselinePath() != null
-                    && Files.isRegularFile(config.baselinePath())) {
-                baseline = ReportIo.readRun(config.baselinePath());
+            EvalRun baseline = loadBaselineIfPresent(config);
+            if (config.usesModel() && !isModelSnapshot(baseline)) {
+                gate = QualityGateResult.skipped("live quality gate needs a live baseline file");
+            } else {
+                gate = QualityGate.evaluate(draft, config.thresholds(), baseline);
             }
-            gate = QualityGate.evaluate(draft, config.thresholds(), baseline);
         }
         return new EvalRun(
                 draft.runId(),
@@ -134,6 +135,7 @@ public final class EvalExecutor {
                 draft.model(),
                 draft.judgeModel(),
                 draft.datasetVersion(),
+                draft.packDatasetVersion(),
                 draft.gitCommit(),
                 draft.configuration(),
                 draft.casesTotal(),
@@ -149,6 +151,20 @@ public final class EvalExecutor {
                 draft.cases(),
                 draft.durationMs(),
                 gate);
+    }
+
+    public static boolean isModelSnapshot(EvalRun run) {
+        if (run == null || run.configuration() == null || run.configuration().mode() == null) {
+            return false;
+        }
+        return !"DETERMINISTIC".equals(run.configuration().mode());
+    }
+
+    private static EvalRun loadBaselineIfPresent(EvalConfig config) {
+        if (config.baselinePath() == null || !Files.isRegularFile(config.baselinePath())) {
+            return null;
+        }
+        return ReportIo.readRun(config.baselinePath());
     }
 
     CaseResult executeCase(GoldenCase row) {

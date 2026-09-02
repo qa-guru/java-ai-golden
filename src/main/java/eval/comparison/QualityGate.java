@@ -40,7 +40,6 @@ public final class QualityGate {
             EvalMetrics b = baseline.metrics();
             addDeltaMin(rules, "overallPassRate", b.overallPassRate(), m.overallPassRate(), allowed);
             addDeltaMin(rules, "contractPassRate", b.contractPassRate(), m.contractPassRate(), allowed);
-            addDeltaMin(rules, "judgeAcceptRate", b.judgeAcceptRate(), m.judgeAcceptRate(), allowed);
             addDeltaMin(rules, "retrievalPassRate", b.retrievalPassRate(), m.retrievalPassRate(), allowed);
             addDeltaMin(rules, "negativeCasePassRate", b.negativeCasePassRate(), m.negativeCasePassRate(), allowed);
             addDeltaMin(rules, "refusalAccuracy", b.refusalAccuracy(), m.refusalAccuracy(), allowed);

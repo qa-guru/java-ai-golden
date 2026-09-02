@@ -25,4 +25,9 @@ public record Thresholds(
     public static Thresholds deterministicStrict() {
         return new Thresholds(1.0, 1.0, null, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, null);
     }
+
+    /** Live/model eval: no absolute mins (would paint 7b or hide a bad snapshot). Delta vs live baseline only. */
+    public static Thresholds liveDelta() {
+        return new Thresholds(null, null, null, null, null, null, null, null, null, 0.02);
+    }
 }

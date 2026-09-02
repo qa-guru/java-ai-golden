@@ -9,7 +9,8 @@ import eval.domain.ContractResult;
 import eval.domain.EvalMetrics;
 import eval.domain.EvalRun;
 import eval.domain.EvalStatus;
-import eval.domain.LatencyStats;
+import eval.domain.JudgeDecision;
+import eval.domain.JudgeResult;
 import eval.domain.QualityGateResult;
 import eval.domain.Rate;
 import eval.domain.RunConfiguration;
@@ -32,6 +33,36 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @Tag("framework")
 @DisplayName("Comparison and quality gate")
 class RunComparatorTest {
+
+    @Test
+    void packVersionMismatchIsInvalid() {
+        EvalRun a = run("a", "generation-v1", List.of(passing("GEN-001")));
+        EvalRun b = new EvalRun(
+                "b",
+                "t",
+                "model-b",
+                null,
+                "generation-v1",
+                "pack-v2",
+                "abc",
+                a.configuration(),
+                1,
+                1,
+                0,
+                0,
+                0,
+                1,
+                1,
+                0,
+                0,
+                a.metrics(),
+                a.cases(),
+                10,
+                null);
+        ComparisonResult result = RunComparator.compare(a, b);
+        assertFalse(result.valid());
+        assertTrue(result.invalidReason().contains("packDatasetVersion"));
+    }
 
     @Test
     void datasetMismatchIsInvalid() {
@@ -79,6 +110,21 @@ class RunComparatorTest {
     }
 
     @Test
+    void judgeAcceptRateIsNotADeltaGate() {
+        EvalRun baseline = run("b", "generation-v1", List.of(
+                passingWithJudge("1", JudgeDecision.ACCEPT),
+                passingWithJudge("2", JudgeDecision.ACCEPT),
+                passingWithJudge("3", JudgeDecision.ACCEPT)));
+        EvalRun candidate = run("c", "generation-v1", List.of(
+                passingWithJudge("1", JudgeDecision.REJECT),
+                passingWithJudge("2", JudgeDecision.REJECT),
+                passingWithJudge("3", JudgeDecision.ACCEPT)));
+        QualityGateResult gate = QualityGate.evaluate(candidate, Thresholds.liveDelta(), baseline);
+        assertTrue(gate.passed());
+        assertTrue(gate.rules().stream().noneMatch(r -> r.name().contains("judgeAcceptRate")));
+    }
+
+    @Test
     void deltaRegressionOfThreePointsFailsWhenAllowedIsTwo() {
         EvalRun baseline = run("b", "generation-v1", List.of(
                 passing("1"), passing("2"), passing("3"), passing("4"), passing("5"),
@@ -110,8 +156,9 @@ class RunComparatorTest {
                 "model-" + id,
                 null,
                 dataset,
+                "pack-v1",
                 "abc",
-                new RunConfiguration("DETERMINISTIC", "model-" + id, null, false, 1, false, "FAILURE", "build"),
+                new RunConfiguration("DETERMINISTIC", "model-" + id, null, false, 1, false, "FAILURE", "build", "ollama"),
                 cases.size(),
                 passed,
                 failed,
@@ -128,11 +175,20 @@ class RunComparatorTest {
     }
 
     private static CaseResult passing(String id) {
-        return caseResult(id, EvalStatus.PASS, Set.of(CaseKind.GENERATION), ContractResult.pass());
+        return caseResult(id, EvalStatus.PASS, Set.of(CaseKind.GENERATION), ContractResult.pass(), null);
+    }
+
+    private static CaseResult passingWithJudge(String id, JudgeDecision decision) {
+        return caseResult(
+                id,
+                EvalStatus.PASS,
+                Set.of(CaseKind.GENERATION),
+                ContractResult.pass(),
+                new JudgeResult(decision, 0.5, List.of(), true, decision.name()));
     }
 
     private static CaseResult failing(String id) {
-        return caseResult(id, EvalStatus.FAIL, Set.of(CaseKind.GENERATION), ContractResult.fail(List.of("x")));
+        return caseResult(id, EvalStatus.FAIL, Set.of(CaseKind.GENERATION), ContractResult.fail(List.of("x")), null);
     }
 
     private static CaseResult hallucinationFail(String id) {
@@ -140,17 +196,23 @@ class RunComparatorTest {
                 id,
                 EvalStatus.FAIL,
                 Set.of(CaseKind.GENERATION, CaseKind.HALLUCINATION, CaseKind.NEGATIVE),
-                ContractResult.fail(List.of("Invalid password")));
+                ContractResult.fail(List.of("Invalid password")),
+                null);
     }
 
-    private static CaseResult caseResult(String id, EvalStatus status, Set<CaseKind> kinds, ContractResult contract) {
+    private static CaseResult caseResult(
+            String id,
+            EvalStatus status,
+            Set<CaseKind> kinds,
+            ContractResult contract,
+            JudgeResult judge) {
         AttemptResult attempt = new AttemptResult(
                 1,
                 status,
                 contract,
-                null,
+                judge,
                 "out",
-                null,
+                judge == null ? null : judge.raw(),
                 TokenUsage.unknown(),
                 5,
                 null,

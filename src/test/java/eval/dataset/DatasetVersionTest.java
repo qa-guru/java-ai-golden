@@ -2,6 +2,7 @@ package eval.dataset;
 
 import eval.generation.GoldenCase;
 import eval.generation.GoldenReader;
+import eval.pack.PackFiles;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -23,6 +24,12 @@ class DatasetVersionTest {
         DatasetManifest manifest = GoldenReader.manifest();
         assertEquals("generation-v1", manifest.version());
         assertEquals("generation-v1", GoldenReader.datasetVersion());
+    }
+
+    @Test
+    void packDatasetIsVersioned() {
+        assertEquals("pack-v1", PackFiles.datasetVersion());
+        assertEquals("pack-v1", PackFiles.manifest().version());
     }
 
     @Test

@@ -24,7 +24,8 @@ repositories {
 
 def ollamaProps = [
         'live', 'model', 'judgeModel', 'judge', 'ollamaHost', 'writeFixtures', 'red',
-        'repetitions', 'mode', 'outputDir', 'baseline', 'gate', 'evalConfig', 'artifacts'
+        'repetitions', 'mode', 'outputDir', 'baseline', 'gate', 'evalConfig', 'artifacts',
+        'provider', 'openaiBaseUrl', 'openaiApiKey', 'saveBaseline'
 ]
 
 dependencies {
@@ -72,6 +73,15 @@ tasks.register('evalDeterministic', JavaExec) {
     args '--mode=deterministic', '--gate', '--artifacts=failure'
 }
 
+tasks.register('evalRegression', JavaExec) {
+    group = 'eval'
+    description = 'Compare fixture run to baselines/generation-v1.json (absolute 100% + delta)'
+    classpath = evalClasspath
+    mainClass = 'eval.cli.EvalMain'
+    workingDir = layout.projectDirectory
+    args '--mode=regression', '--gate', '--baseline=baselines/generation-v1.json'
+}
+
 tasks.register('evalLive', JavaExec) {
     group = 'eval'
     description = 'Limited live eval (Ollama). Skips red 7b rows unless -Dred=true'
@@ -102,11 +112,17 @@ tasks.register('evalNightly', JavaExec) {
     }
 }
 
-tasks.register('evalRegression', JavaExec) {
+tasks.register('evalLiveRegression', JavaExec) {
     group = 'eval'
-    description = 'Compare current deterministic run to baselines/generation-v1.json'
+    description = 'Compare live run to baselines/live-generation-v1.json (delta gate, not 100% absolute)'
     classpath = evalClasspath
     mainClass = 'eval.cli.EvalMain'
     workingDir = layout.projectDirectory
-    args '--mode=regression', '--gate', '--baseline=baselines/generation-v1.json'
+    args '--mode=regression', '--live', '--gate', '--baseline=baselines/live-generation-v1.json'
+    ollamaProps.each { key ->
+        def override = System.getProperty(key)
+        if (override != null) {
+            systemProperty key, override
+        }
+    }
 }

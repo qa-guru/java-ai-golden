@@ -93,7 +93,7 @@ e2e id = история формы. HTTP 401 — в `login-401-api` и в `must_
 
 ## Pack, если осталась минута
 
-Офлайн, без Ollama. Подробности: [eval/pack/README.md](src/test/java/eval/pack/README.md).
+Офлайн, без Ollama. Подробности: [eval/pack/README.md](src/test/java/eval/pack/README.md). Версия диеты: `pack-v1` (`src/test/resources/pack/dataset.json`).
 
 - в jsonl у `login-401-api` добавить rag-id `test-negative` — `RetrieverTest`;
 - в `po-fluent` `index:` дописать `неуспешный` — poison ретривера.
@@ -118,4 +118,4 @@ e2e id = история формы. HTTP 401 — в `login-401-api` и в `must_
 ./gradlew test evalDeterministic evalRegression
 ```
 
-`evalDeterministic` = 100% по **фикстурам**, не оценка живой 7b. Live: `./gradlew evalLive` / `evalNightly`.
+`evalDeterministic` = 100% по **фикстурам**, не оценка живой 7b. Live: `./gradlew evalLive` / `evalLiveRegression` / `evalNightly`.

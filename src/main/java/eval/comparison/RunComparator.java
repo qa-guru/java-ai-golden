@@ -34,6 +34,12 @@ public final class RunComparator {
                     "COMPARISON INVALID: datasetVersion mismatch: "
                             + baseline.datasetVersion() + " vs " + candidate.datasetVersion());
         }
+        if (baseline.packDatasetVersion() != null && candidate.packDatasetVersion() != null
+                && !baseline.packDatasetVersion().equals(candidate.packDatasetVersion())) {
+            return ComparisonResult.invalid(
+                    "COMPARISON INVALID: packDatasetVersion mismatch: "
+                            + baseline.packDatasetVersion() + " vs " + candidate.packDatasetVersion());
+        }
         List<String> configDiffs = new ArrayList<>();
         if (baseline.configuration() != null) {
             configDiffs.addAll(baseline.configuration().differences(candidate.configuration()));

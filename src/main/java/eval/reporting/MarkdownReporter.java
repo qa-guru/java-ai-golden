@@ -25,7 +25,11 @@ public final class MarkdownReporter {
         md.append("- Run: `").append(run.runId()).append("`\n");
         md.append("- Model: `").append(run.model()).append("`\n");
         md.append("- Judge: `").append(run.judgeModel() == null ? "off" : run.judgeModel()).append("`\n");
-        md.append("- Dataset: `").append(run.datasetVersion()).append("`\n");
+        md.append("- Dataset: `").append(run.datasetVersion()).append("`");
+        if (run.packDatasetVersion() != null) {
+            md.append(" / `").append(run.packDatasetVersion()).append("`");
+        }
+        md.append('\n');
         md.append("- Commit: `").append(run.gitCommit()).append("`\n");
         if (run.configuration() != null) {
             md.append("- Mode: `").append(run.configuration().mode()).append("`\n");

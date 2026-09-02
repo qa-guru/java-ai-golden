@@ -112,6 +112,7 @@ public final class ArtifactWriter {
                 run.model(),
                 run.judgeModel(),
                 run.datasetVersion(),
+                run.packDatasetVersion(),
                 run.gitCommit(),
                 run.configuration(),
                 run.casesTotal(),

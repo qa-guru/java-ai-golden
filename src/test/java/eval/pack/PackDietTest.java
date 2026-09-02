@@ -71,7 +71,8 @@ class PackDietTest {
                 "rules.md",
                 "qa-write-test.md",
                 "adr/009-login-401-is-api.md",
-                "context/login-po.md")) {
+                "context/login-po.md",
+                "dataset.json")) {
             assertTrue(Files.isRegularFile(PackFiles.root().resolve(relative)), relative);
         }
     }

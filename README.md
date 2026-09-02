@@ -72,7 +72,7 @@ Layers (packages), not a 500-class framework:
 | `eval.metrics` | Aggregation |
 | `eval.comparison` | Baseline diff, quality gate |
 | `eval.reporting` | JSON / Markdown / artifacts |
-| `eval.provider` | `ModelRunner` — core does not import OpenAI/Anthropic/Gemini |
+| `eval.provider` | `ModelRunner` factory: `ollama` (default) or `openai` (OpenAI-compatible HTTP). Cursor agent is a different SUT — not wired. |
 | `eval.cli` | `EvalMain`, exit codes |
 
 Existing mill JUnit tests (`GenerationContractTest`, `LiveGenerationContractTest`, pack tests) stay. The pipeline **reuses** their graders; it does not replace them.
@@ -81,12 +81,13 @@ Existing mill JUnit tests (`GenerationContractTest`, `LiveGenerationContractTest
 
 - File: `src/test/java/eval/generation/golden-generation.jsonl`
 - Version: `src/test/java/eval/generation/dataset.json` → currently **`generation-v1`**
+- Pack version: `src/test/resources/pack/dataset.json` → **`pack-v1`** (EvalRun.packDatasetVersion)
 - **Stable case id** = JSONL `id` (e.g. `login-wrong-password-e2e`). Not the line index. Prefixes like `GEN-001` are a naming option for *new* datasets; this mill keeps story ids because fixtures, START, and lab 36 already use them.
 - Fixtures: `src/test/java/eval/generation/fixtures/<id>.out.md` — CI without LLM
 - Rules for changing the dataset: [docs/dataset-versioning.md](docs/dataset-versioning.md)
 - How to add a case: [docs/adding-a-case.md](docs/adding-a-case.md)
 
-Pack diet (SUT for retriever/isolation/skill): `src/test/resources/pack/`. Changing `expect.rag` or retriever behaviour is a **dataset change** — bump `generation-v1`. Details: `src/test/java/eval/pack/README.md`.
+Pack diet (SUT for retriever/isolation/skill): `src/test/resources/pack/`. Changing retrieve sets bumps **`pack-v1`**; changing `expect.rag` / contracts also bumps **`generation-v1`**. Details: `src/test/java/eval/pack/README.md`.
 
 ## Contract grading
 
@@ -153,7 +154,7 @@ Example: 5/5, 4/5, 5/5 → generation attempts 14/15 = 93.3%, not (100+80+100)/3
 ## Model benchmark
 
 ```bash
-./gradlew evalLive --args='--mode=benchmark --models=qwen2.5-coder:7b,other:tag --repetitions=5 --red'
+./gradlew run --args='--mode=benchmark --models=qwen2.5-coder:7b,other:tag --repetitions=5 --red'
 ```
 
 Same dataset, same graders, same attempt count. Table: Overall / Contract / RAG / Hallucination per model. First two models also get a pairwise comparison JSON.
@@ -162,20 +163,40 @@ Same dataset, same graders, same attempt count. Table: Overall / Contract / RAG 
 
 ```bash
 ./gradlew evalRegression
-# or
-./gradlew evalDeterministic --args='--mode=regression --baseline=baselines/generation-v1.json --gate'
 ```
 
 Requires matching `datasetVersion`. Per-case: `NEW_FAILURE` | `RECOVERED` | `STILL_FAILING` | `STILL_PASSING`. Metric deltas: `IMPROVED` | `REGRESSED` | `UNCHANGED`.
 
-Committed baseline `baselines/generation-v1.json` is the **deterministic fixture** snapshot. A live-model baseline is a different file you save with `--save-baseline=…` after a live run; do not treat fixture 100% as live quality.
+Committed baseline `baselines/generation-v1.json` is the **deterministic fixture** snapshot.
+
+Live baseline `baselines/live-generation-v1.json` is a **model** snapshot (non-red rows, 1 attempt). Capture:
+
+```bash
+./gradlew run --args='--mode=live --judge=true --artifacts=always --save-baseline=baselines/live-generation-v1.json'
+./gradlew evalLiveRegression
+```
+
+Live gate uses `liveThresholds.allowedRegression` on **hard** rates (overall, contract, retrieval, …). Judge accept rate is reported but **not** in the delta gate (soft, mill: REJECT does not fail live).
+
+Do not treat fixture 100% as live quality.
+
+## Providers
+
+Default live provider is **Ollama** (`--provider=ollama`). Mill camera stays that way.
+
+OpenAI-compatible HTTP (LM Studio, vLLM, OpenAI, …):
+
+```bash
+./gradlew evalLive -Dprovider=openai -DopenaiBaseUrl=http://127.0.0.1:1234 -Dmodel=...
+```
+
+`EvalRun.configuration.provider` is recorded. Cost stays `null` unless the HTTP body actually includes a price (we do not invent USD from tokens). Cursor / Composer is still out of scope.
 
 ## Quality gate
 
-`--gate` applies `eval.json` `thresholds`:
+`--gate` on **deterministic** runs applies `eval.json` `thresholds` (absolute 100% on fixtures, plus delta vs fixture baseline if the file exists).
 
-- Absolute mins for pass rates; **max** for `hallucinationRate`
-- Optional `allowedRegression` (delta): candidate ≥ baseline − δ (inverted for hallucination)
+`--gate` on **live** runs applies `liveThresholds` only (default: `allowedRegression: 0.02`, no absolute mins). Without a live baseline file the gate is skipped — not a fake 100%.
 
 Exit codes (`eval.cli.ExitCode`):
 
@@ -196,7 +217,7 @@ Statuses: `PASS` | `FAIL` | `SKIPPED` (red rows without `--red`) | `ERROR` (infr
 | Job | Command | LLM |
 |---|---|---|
 | PR | `./gradlew test` then `./gradlew evalDeterministic` then `./gradlew evalRegression` | no |
-| Merge / limited live | `./gradlew evalLive` (self-hosted or laptop with Ollama) | yes, skips `red` rows |
+| Merge / limited live | `./gradlew evalLive` then `./gradlew evalLiveRegression` | yes, skips `red` rows |
 | Nightly | `./gradlew evalNightly` (`--red --repetitions=5`) | yes, full |
 
 Do not run full live+judge on every PR.
@@ -245,10 +266,12 @@ Live (local Ollama, default `qwen2.5-coder:7b`):
 ./gradlew evalLive                                      # pipeline, skip red
 ./gradlew evalLive -Dred=true                           # include mixed-layer / hallucinate-*
 ./gradlew evalNightly                                   # 5 reps + red
-./gradlew evalLive --args='--save-baseline=baselines/live-generation-v1.json'
+./gradlew evalLiveRegression                            # delta vs baselines/live-generation-v1.json
 ```
 
-System properties overlay `eval.json`: `model`, `judgeModel`, `judge`, `repetitions`, `red`, `gate`, `outputDir`, `baseline`, `live`.
+OpenAI-compatible: `--provider=openai` and `-DopenaiBaseUrl=` / `OPENAI_API_KEY`.
+
+System properties overlay `eval.json`: `model`, `judgeModel`, `judge`, `repetitions`, `red`, `gate`, `outputDir`, `baseline`, `live`, `provider`, `saveBaseline`.
 
 Mill camera flags are unchanged: `-Dlive=true -DincludeTags=live`, `-Dred=true`, `-Djudge=false`, `-DwriteFixtures=true`.
 
@@ -256,6 +279,6 @@ Mill camera flags are unchanged: `-Dlive=true -DincludeTags=live`, `-Dred=true`,
 
 **PR:** `./gradlew test evalDeterministic evalRegression` — fixtures, contract, pack, retriever, grader tests, quality gate vs committed deterministic baseline.
 
-**Limited live:** `./gradlew evalLive` — five non-red goldens, one attempt, judge on.
+**Limited live:** `./gradlew evalLive` — five non-red goldens, one attempt, judge on. Then `evalLiveRegression` against the committed live baseline.
 
-**Full / nightly:** `./gradlew evalNightly` — all rows including red, `repetitions=5`, artifacts always. Add `--gate` only against a **live** baseline you trust; do not lower thresholds to paint 7b green.
+**Full / nightly:** `./gradlew evalNightly` — all rows including red, `repetitions=5`, artifacts always. Do not lower `liveThresholds` to paint 7b green.

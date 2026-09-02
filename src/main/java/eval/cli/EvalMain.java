@@ -72,6 +72,11 @@ public final class EvalMain {
             return ExitCode.USAGE;
         }
         EvalRun baseline = ReportIo.readRun(config.baselinePath());
+        if (config.usesModel() && !EvalExecutor.isModelSnapshot(baseline)) {
+            System.err.println(
+                    "COMPARISON INVALID: live regression needs a live baseline, not a fixture snapshot");
+            return ExitCode.COMPARISON_INVALID;
+        }
         return runOnce(config, baseline);
     }
 
@@ -154,8 +159,12 @@ public final class EvalMain {
                   --save-baseline=PATH
                   --models=a,b,c
                   --red
+                  --live
                   --gate
                   --artifacts=failure|always|never
+                  --provider=ollama|openai
+                  --openaiBaseUrl=URL
+                  --openaiApiKey=KEY
                   --config=eval.json
 
                 Exit codes:

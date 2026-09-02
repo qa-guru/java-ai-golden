@@ -41,6 +41,7 @@ class EvalExecutorTest {
         assertEquals(0, run.casesFailed());
         assertEquals(0, run.casesError());
         assertEquals("generation-v1", run.datasetVersion());
+        assertEquals("pack-v1", run.packDatasetVersion());
         assertTrue(run.metrics().overallPassRate().value() > 0.99);
         assertTrue(run.metrics().retrievalPassRate().value() > 0.99);
         assertTrue(run.qualityGate() != null && run.qualityGate().passed());
@@ -100,6 +101,35 @@ class EvalExecutorTest {
         long skipped = run.cases().stream().filter(c -> c.status() == EvalStatus.SKIPPED).count();
         assertEquals(3, skipped);
         assertEquals(5, run.casesPassed());
+    }
+
+    @Test
+    void liveGateAgainstFixtureBaselineIsSkipped() {
+        EvalConfig config = EvalConfig.resolve(new String[]{
+                "--mode=live",
+                "--judge=false",
+                "--gate",
+                "--baseline=baselines/generation-v1.json",
+                "--output=" + tmp,
+                "--artifacts=never"
+        });
+        ModelRunner runner = (system, user, model) -> new ModelResponse(
+                fixtureFor(user), TokenUsage.of(1, 1), 8);
+        EvalRun run = new EvalExecutor(config, runner).execute();
+        assertEquals("SKIPPED", run.qualityGate().verdict());
+        assertTrue(run.qualityGate().passed());
+    }
+
+    @Test
+    void liveRegressionAgainstFixtureBaselineIsInvalid() {
+        int code = EvalMain.run(new String[]{
+                "--mode=regression",
+                "--live",
+                "--judge=false",
+                "--baseline=baselines/generation-v1.json",
+                "--output=" + tmp
+        });
+        assertEquals(ExitCode.COMPARISON_INVALID, code);
     }
 
     private static String fixtureFor(String user) {

@@ -6,6 +6,8 @@ import eval.domain.EvalMode;
 import eval.domain.MetricWeights;
 import eval.domain.Thresholds;
 import eval.generation.GoldenReader;
+import eval.pack.PackFiles;
+import eval.provider.ModelRunners;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -32,9 +34,13 @@ public final class EvalConfig {
     private boolean applyGate = false;
     private ArtifactMode artifactMode = ArtifactMode.FAILURE;
     private Thresholds thresholds = Thresholds.deterministicStrict();
+    private Thresholds liveThresholds = Thresholds.liveDelta();
     private MetricWeights weights = MetricWeights.equal();
     private boolean writeFixtures = false;
     private boolean live = false;
+    private String provider = ModelRunners.OLLAMA;
+    private String openaiBaseUrl = "https://api.openai.com";
+    private String openaiApiKey = "";
     private Path configPath;
 
     public EvalMode mode() {
@@ -95,7 +101,19 @@ public final class EvalConfig {
     }
 
     public Thresholds thresholds() {
-        return thresholds;
+        return usesModel() ? liveThresholds : thresholds;
+    }
+
+    public String provider() {
+        return provider;
+    }
+
+    public String openaiBaseUrl() {
+        return openaiBaseUrl;
+    }
+
+    public String openaiApiKey() {
+        return openaiApiKey;
     }
 
     public MetricWeights weights() {
@@ -112,6 +130,10 @@ public final class EvalConfig {
 
     public String datasetVersion() {
         return GoldenReader.datasetVersion();
+    }
+
+    public String packDatasetVersion() {
+        return PackFiles.datasetVersion();
     }
 
     public static EvalConfig resolve(String[] args) {
@@ -141,9 +163,13 @@ public final class EvalConfig {
         copy.applyGate = this.applyGate;
         copy.artifactMode = this.artifactMode;
         copy.thresholds = this.thresholds;
+        copy.liveThresholds = this.liveThresholds;
         copy.weights = this.weights;
         copy.writeFixtures = this.writeFixtures;
         copy.live = this.live;
+        copy.provider = this.provider;
+        copy.openaiBaseUrl = this.openaiBaseUrl;
+        copy.openaiApiKey = this.openaiApiKey;
         return copy;
     }
 
@@ -202,8 +228,20 @@ public final class EvalConfig {
             if (dto.thresholds != null) {
                 config.thresholds = dto.thresholds;
             }
+            if (dto.liveThresholds != null) {
+                config.liveThresholds = dto.liveThresholds;
+            }
             if (dto.weights != null) {
                 config.weights = dto.weights;
+            }
+            if (dto.provider != null) {
+                config.provider = dto.provider.strip().toLowerCase(Locale.ROOT);
+            }
+            if (dto.openaiBaseUrl != null) {
+                config.openaiBaseUrl = dto.openaiBaseUrl;
+            }
+            if (dto.openaiApiKey != null) {
+                config.openaiApiKey = dto.openaiApiKey;
             }
         } catch (IOException e) {
             throw new UncheckedIOException("Cannot read " + file, e);
@@ -252,6 +290,25 @@ public final class EvalConfig {
         if ("true".equals(System.getProperty("writeFixtures"))) {
             config.writeFixtures = true;
         }
+        String provider = System.getProperty("provider");
+        if (provider != null) {
+            config.provider = provider.strip().toLowerCase(Locale.ROOT);
+        }
+        String openaiBase = System.getProperty("openaiBaseUrl");
+        if (openaiBase != null) {
+            config.openaiBaseUrl = openaiBase;
+        }
+        String openaiKey = System.getProperty("openaiApiKey");
+        if (openaiKey == null || openaiKey.isBlank()) {
+            openaiKey = System.getenv("OPENAI_API_KEY");
+        }
+        if (openaiKey != null && !openaiKey.isBlank()) {
+            config.openaiApiKey = openaiKey;
+        }
+        String saveBaseline = System.getProperty("saveBaseline");
+        if (saveBaseline != null) {
+            config.saveBaselinePath = Path.of(saveBaseline);
+        }
         String live = System.getProperty("live");
         if ("true".equals(live)) {
             config.live = true;
@@ -296,6 +353,12 @@ public final class EvalConfig {
                 config.artifactMode = ArtifactMode.parse(arg.substring("--artifacts=".length()));
             } else if (arg.equals("--live") || "--live=true".equals(arg)) {
                 config.live = true;
+            } else if (arg.startsWith("--provider=")) {
+                config.provider = arg.substring("--provider=".length()).strip().toLowerCase(Locale.ROOT);
+            } else if (arg.startsWith("--openaiBaseUrl=")) {
+                config.openaiBaseUrl = arg.substring("--openaiBaseUrl=".length());
+            } else if (arg.startsWith("--openaiApiKey=")) {
+                config.openaiApiKey = arg.substring("--openaiApiKey=".length());
             }
         }
         if (config.mode == EvalMode.LIVE || config.mode == EvalMode.BENCHMARK) {
@@ -331,6 +394,10 @@ public final class EvalConfig {
         public Boolean gate;
         public String artifacts;
         public Thresholds thresholds;
+        public Thresholds liveThresholds;
         public MetricWeights weights;
+        public String provider;
+        public String openaiBaseUrl;
+        public String openaiApiKey;
     }
 }

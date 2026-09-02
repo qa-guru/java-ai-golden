@@ -11,8 +11,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import eval.dataset.DatasetManifest;
+
 public final class PackFiles {
 
+    private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final Pattern YAML_ID = Pattern.compile("(?m)^id:\\s*(\\S+)");
     private static final Pattern FRONTMATTER = Pattern.compile("(?s)^---\\r?\\n(.*?)\\r?\\n---");
     private static final Pattern HEADING = Pattern.compile("(?m)^#\\s+(.+)$");
@@ -27,6 +31,19 @@ public final class PackFiles {
             return cwd;
         }
         throw new IllegalStateException("Missing pack/rag (cwd=" + Path.of("").toAbsolutePath() + ")");
+    }
+
+    public static DatasetManifest manifest() {
+        Path path = root().resolve("dataset.json");
+        try {
+            return MAPPER.readValue(Files.readString(path, StandardCharsets.UTF_8), DatasetManifest.class);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Missing or invalid pack dataset.json: " + path, e);
+        }
+    }
+
+    public static String datasetVersion() {
+        return manifest().version();
     }
 
     static Path ragDir() {

@@ -14,7 +14,8 @@ public record RunConfiguration(
         int repetitions,
         boolean includeRed,
         String artifactMode,
-        String outputDir
+        String outputDir,
+        String provider
 ) {
     public Map<String, String> asMap() {
         return Map.of(
@@ -25,7 +26,8 @@ public record RunConfiguration(
                 "repetitions", String.valueOf(repetitions),
                 "includeRed", String.valueOf(includeRed),
                 "artifactMode", String.valueOf(artifactMode),
-                "outputDir", String.valueOf(outputDir));
+                "outputDir", String.valueOf(outputDir),
+                "provider", String.valueOf(provider));
     }
 
     public List<String> differences(RunConfiguration other) {

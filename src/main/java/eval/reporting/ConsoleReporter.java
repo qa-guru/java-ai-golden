@@ -22,7 +22,11 @@ public final class ConsoleReporter {
         out.append("=======\n");
         out.append("Model:        ").append(run.model()).append('\n');
         out.append("Judge:        ").append(run.judgeModel() == null ? "off" : run.judgeModel()).append('\n');
-        out.append("Dataset:      ").append(run.datasetVersion()).append('\n');
+        out.append("Dataset:      ").append(run.datasetVersion());
+        if (run.packDatasetVersion() != null) {
+            out.append(" / ").append(run.packDatasetVersion());
+        }
+        out.append('\n');
         out.append("Commit:       ").append(run.gitCommit()).append('\n');
         int reps = run.configuration() == null ? 1 : run.configuration().repetitions();
         out.append("Repetitions:  ").append(reps).append('\n');

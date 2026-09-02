@@ -13,6 +13,7 @@ public record EvalRun(
         String model,
         String judgeModel,
         String datasetVersion,
+        String packDatasetVersion,
         String gitCommit,
         RunConfiguration configuration,
         int casesTotal,

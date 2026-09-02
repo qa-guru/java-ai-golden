@@ -1,0 +1,9 @@
+{
+  "version": "pack-v1",
+  "schema": 1,
+  "name": "pack",
+  "description": "Mill pack diet: rules, skill, RAG chunks, ADR 009, login PO context.",
+  "changelog": [
+    "pack-v1: lexical retriever diet used by generation-v1 expect.rag."
+  ]
+}
