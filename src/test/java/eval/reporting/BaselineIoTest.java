@@ -81,6 +81,9 @@ class BaselineIoTest {
         assertEquals(5, run.configuration().repetitions());
         assertEquals(true, run.configuration().includeRed());
         assertEquals("ollama", run.configuration().provider());
+        assertEquals("development", run.configuration().datasetSplit());
+        assertTrue(run.datasetHash() != null && run.datasetHash().length() == 64);
+        assertEquals(GoldenReader.datasetHash(), run.datasetHash());
     }
 
     @Test

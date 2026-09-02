@@ -185,7 +185,7 @@ Live baseline `baselines/live-generation-v1.json` is a **model** snapshot (non-r
 ./gradlew evalLiveRegression
 ```
 
-Nightly baseline `baselines/nightly-generation-v1.json` is a **different protocol**: all 8 rows including red, 5 attempts. Do not compare it to the 1-shot live file (`repetitions` / `includeRed` mismatch → `COMPARISON INVALID`). Capture:
+Nightly baseline `baselines/nightly-generation-v1.json` is a **different protocol**: all 8 rows including red, 5 attempts. Recaptured from Selectel Box2 Ollama (`qwen2.5-coder:7b`, GHA nightly protocol). Must include `datasetHash` / `datasetSplit`. Do not compare it to the 1-shot live file (`repetitions` / `includeRed` mismatch → `COMPARISON INVALID`). Capture:
 
 ```bash
 ./gradlew evalNightly -DsaveBaseline=baselines/nightly-generation-v1.json -DforceSaveBaseline=true
