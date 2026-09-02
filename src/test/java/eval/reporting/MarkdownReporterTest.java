@@ -29,7 +29,7 @@ class MarkdownReporterTest {
         EvalRun run = new EvalExecutor(config).execute();
         String md = MarkdownReporter.render(run, null);
         assertTrue(md.contains("prompt-v13"));
-        assertTrue(md.contains("95% CI"));
+        assertTrue(md.contains("100.0%"));
         assertTrue(md.contains("Coverage"));
         assertTrue(md.contains("Quality gate"));
         assertTrue(md.contains(run.datasetHash()));

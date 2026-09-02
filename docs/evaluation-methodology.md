@@ -12,7 +12,7 @@ Dataset
        ├── retrieval grading (hard)
        └── LLM judge (soft, optional)
   → Case results (PASS / FAIL / ERROR / SKIPPED)
-  → Metrics (attempt-weighted) + stability + 95% Wilson CI
+  → Metrics (attempt-weighted) + stability
   → Repeated runs
   → Baseline / candidate
   → Paired comparison
@@ -130,15 +130,14 @@ McNemar uses only `NEW_FAILURE` / `RECOVERED` pairs. An Ollama timeout is `NEW_E
 
 Overall improvement must not hide a `NEW_FAILURE`. A **CRITICAL** new failure fails the gate even if overall delta is within budget.
 
-**Confirmed regression** vs **no confirmed regression** (live delta / `--gate`):
+Live delta (`--gate`):
 
-1. If the point estimate is within `allowedRegression` of the baseline → **NO CONFIRMED REGRESSION**.
-2. If the point estimate is worse than allowed **and** the two 95% Wilson CIs **do not overlap** → **CONFIRMED REGRESSION** (gate FAIL).
-3. If the point estimate is worse than allowed **but the CIs overlap** → **NO CONFIRMED REGRESSION** (gate PASS for that delta rule). Small n (1 fail in 40) is noise, not a confirmed drop.
-4. A **CRITICAL** `NEW_FAILURE` still fails the gate even when CIs overlap.
-5. Absolute thresholds (fixture 100%) are unchanged: one fixture fail is still a gate FAIL.
+1. If the rate is within `allowedRegression` of the baseline → `NO_REGRESSION`.
+2. If the rate is worse than allowed → `REGRESSION` (gate FAIL).
+3. A **CRITICAL** `NEW_FAILURE` still fails the gate even when the overall drop is within budget.
+4. Absolute thresholds (fixture 100%) are unchanged: one fixture fail is still a gate FAIL.
 
-`comparison.decision` is `CONFIRMED_REGRESSION` | `NO_CONFIRMED_REGRESSION` | `COMPARISON_INVALID`. McNemar stays informational.
+`comparison.decision` is `REGRESSION` | `NO_REGRESSION` | `COMPARISON_INVALID`. McNemar stays informational.
 
 ## Metrics
 
@@ -166,10 +165,6 @@ Quality ≠ stability.
 - PASS FAIL PASS FAIL PASS → medium quality, low stability (`unstableCaseRate`)
 
 A case is unstable when `qualityAttempts >= 2` and not all outcomes match.
-
-### Confidence interval
-
-Every defined rate carries a **Wilson 95% CI**. n=10 at 100% is still a wide interval. The gate uses the point estimate; the report must show the interval so CI is not a mathematical illusion.
 
 ### Slices
 
@@ -212,11 +207,9 @@ Different **models, prompts, experiments** are allowed — that is the experimen
 Two rule families, both optional per metric:
 
 1. **Absolute** — pass rate ≥ min; hallucination ≤ max
-2. **Delta** — first the point estimate vs `allowedRegression`, then confirmation: 95% Wilson CIs must **not overlap** to FAIL. Overlap → `NO CONFIRMED REGRESSION` (delta rule passes).
+2. **Delta** — rate vs `allowedRegression`. Worse than allowed → FAIL.
 
-Absolute pass does **not** waive a **confirmed** delta fail: baseline 20/20, candidate 5/20, absolute min 20%, max regression 2pp → absolute PASS, delta **CONFIRMED REGRESSION**.
-
-A 2–3pp drop on n=20 with overlapping CIs is **not** a confirmed regression.
+Absolute pass does **not** waive a delta fail: baseline 20/20, candidate 5/20, absolute min 20%, max regression 2pp → absolute PASS, delta **REGRESSION**.
 
 CRITICAL new failures fail the gate.
 
@@ -293,7 +286,7 @@ GitHub-hosted `ubuntu-latest` has no Ollama. Do not make live LLM required for e
 ## What this mill does not claim
 
 - Fixture `overallPassRate = 100%` ≠ live model quality.
-- n=8 at 100% ≠ statistically proven perfect (see Wilson CI).
+- 8/8 on fixtures is not a live model score.
 - Ollama token counts ≠ billed USD.
 - Lexical retriever match ≠ IR precision@k.
 - Judge `PENDING` ≠ accept.

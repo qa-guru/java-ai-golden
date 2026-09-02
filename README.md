@@ -37,7 +37,7 @@ One **EvalRun** is one execution of the pipeline. Identity:
 | `experimentId` | Optional evaluation target label (`--experiment=prompt-v13`) |
 | `gitCommit` | Short SHA |
 | cases / attempts | passed, failed, skipped, error (skipped ≠ pass, error ≠ fail) |
-| `metrics` | attempt-weighted rates, slices, stability, Wilson 95% CI |
+| `metrics` | attempt-weighted rates, slices, stability |
 | `durationMs` | wall time |
 
 Stored under `build/eval/<runId>/` as `run.json`, `summary.json`, `eval-report.md`, plus per-case artifacts on failure (or `--artifacts=always`).
@@ -154,7 +154,7 @@ Computed as **hits / total attempts** (or cases for retrieval). Not the unweight
 
 Computed as **hits / total quality attempts** (PASS+FAIL). SKIPPED and ERROR are excluded. Coverage is executed/cases.
 
-A deterministic 100% overall means **fixtures still match the contract**, not “qwen 7b is production-ready”. n=8 at 100% still has a wide Wilson 95% CI — see the report.
+A deterministic 100% overall means **fixtures still match the contract**, not “qwen 7b is production-ready”.
 
 ## Repeated runs
 
@@ -178,7 +178,7 @@ Same dataset, same graders, same attempt count. Table: Overall / Contract / RAG 
 ./gradlew evalRegression
 ```
 
-Requires matching `datasetVersion` (and `datasetHash` when both runs have one). Per-case: `NEW_FAILURE` | `RECOVERED` | `UNCHANGED_PASS` | `UNCHANGED_FAIL` | `NEW_ERROR` (infra, not quality). Metric deltas: `IMPROVED` | `REGRESSED` | `UNCHANGED`. Live delta FAIL requires a drop beyond `allowedRegression` **and** non-overlapping 95% Wilson CIs (`CONFIRMED_REGRESSION`); overlapping CIs are `NO_CONFIRMED_REGRESSION`.
+Requires matching `datasetVersion` (and `datasetHash` when both runs have one). Per-case: `NEW_FAILURE` | `RECOVERED` | `UNCHANGED_PASS` | `UNCHANGED_FAIL` | `NEW_ERROR` (infra, not quality). Metric deltas: `IMPROVED` | `REGRESSED` | `UNCHANGED`. Live delta FAIL if a hard rate drops more than `allowedRegression` (`REGRESSION`); within budget is `NO_REGRESSION`.
 
 Paired summary: unchanged pass/fail, regressions, improvements. McNemar is informational, never the sole gate.
 

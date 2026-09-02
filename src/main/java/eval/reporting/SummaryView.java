@@ -63,6 +63,6 @@ public record SummaryView(
         if (rate == null || !rate.defined()) {
             return "n/a";
         }
-        return rate.asPercentWithCi();
+        return rate.asPercentAndCount();
     }
 }

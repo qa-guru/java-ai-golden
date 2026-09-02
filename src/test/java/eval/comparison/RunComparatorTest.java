@@ -147,7 +147,7 @@ class RunComparatorTest {
     }
 
     @Test
-    void absolutePassDoesNotWaiveConfirmedDeltaRegression() {
+    void absolutePassDoesNotWaiveDeltaRegression() {
         EvalRun baseline = run("b", "generation-v1", nCases(20, 20));
         EvalRun candidate = run("c", "generation-v1", nCases(5, 20));
         Thresholds t = new Thresholds(0.20, null, null, null, null, null, null, null, null, 0.02);
@@ -155,7 +155,7 @@ class RunComparatorTest {
         assertFalse(gate.passed());
         assertTrue(gate.rules().stream().anyMatch(r -> "absolute".equals(r.kind()) && r.passed()));
         assertTrue(gate.rules().stream().anyMatch(r -> "delta".equals(r.kind()) && !r.passed()));
-        assertTrue(gate.rules().stream().anyMatch(r -> r.detail() != null && r.detail().contains("CONFIRMED REGRESSION")));
+        assertTrue(gate.rules().stream().anyMatch(r -> r.detail() != null && r.detail().contains("REGRESSION")));
     }
 
     @Test
@@ -177,24 +177,24 @@ class RunComparatorTest {
     }
 
     @Test
-    void overlappingWilsonCiIsNotConfirmedRegression() {
+    void dropBeyondAllowedFailsGate() {
         EvalRun baseline = run("b", "generation-v1", nCases(19, 20));
         EvalRun candidate = run("c", "generation-v1", nCases(18, 20));
         ComparisonResult result = RunComparator.compare(baseline, candidate, Thresholds.liveDelta());
         assertTrue(result.valid());
-        assertEquals("NO_CONFIRMED_REGRESSION", result.decision());
-        assertTrue(result.qualityGate().passed());
+        assertEquals("REGRESSION", result.decision());
+        assertFalse(result.qualityGate().passed());
         assertTrue(result.qualityGate().rules().stream()
-                .anyMatch(r -> "delta".equals(r.kind()) && r.passed() && r.detail().contains("NO CONFIRMED REGRESSION")));
+                .anyMatch(r -> "delta".equals(r.kind()) && !r.passed() && r.detail().contains("REGRESSION")));
     }
 
     @Test
-    void confirmedDropFailsWhenWilsonIntervalsSeparate() {
+    void largeDropFailsGate() {
         EvalRun baseline = run("b", "generation-v1", nCases(20, 20));
         EvalRun candidate = run("c", "generation-v1", nCases(5, 20));
         ComparisonResult result = RunComparator.compare(baseline, candidate, Thresholds.liveDelta());
         assertTrue(result.valid());
-        assertEquals("CONFIRMED_REGRESSION", result.decision());
+        assertEquals("REGRESSION", result.decision());
         assertFalse(result.qualityGate().passed());
     }
 
@@ -299,7 +299,7 @@ class RunComparatorTest {
         EvalRun candidate = run("c", "generation-v1", List.of(erroring("1"), passing("2")));
         ComparisonResult result = RunComparator.compare(baseline, candidate, Thresholds.liveDelta());
         assertTrue(result.valid());
-        assertEquals("NO_CONFIRMED_REGRESSION", result.decision());
+        assertEquals("NO_REGRESSION", result.decision());
         assertEquals(0, result.regressions());
         assertEquals(0, result.improvements());
         assertEquals(CaseRegression.NEW_ERROR, find(result, "1"));
@@ -437,22 +437,14 @@ class RunComparatorTest {
     }
 
     @Test
-    void threePointDropOnN20IsNotConfirmedRegression() {
-        EvalRun baseline = run("b", "generation-v1", List.of(
-                passing("1"), passing("2"), passing("3"), passing("4"), passing("5"),
-                passing("6"), passing("7"), passing("8"), passing("9"), passing("10"),
-                passing("11"), passing("12"), passing("13"), passing("14"), passing("15"),
-                passing("16"), passing("17"), passing("18"), passing("19"), failing("20")));
-        EvalRun candidate = run("c", "generation-v1", List.of(
-                passing("1"), passing("2"), passing("3"), passing("4"), passing("5"),
-                passing("6"), passing("7"), passing("8"), passing("9"), passing("10"),
-                passing("11"), passing("12"), passing("13"), passing("14"), passing("15"),
-                passing("16"), passing("17"), failing("18"), failing("19"), failing("20")));
+    void dropWithinAllowedPassesGate() {
+        EvalRun baseline = run("b", "generation-v1", nCases(100, 100));
+        EvalRun candidate = run("c", "generation-v1", nCases(99, 100));
         Thresholds t = new Thresholds(null, null, null, null, null, null, null, null, null, 0.02);
         QualityGateResult gate = QualityGate.evaluate(candidate, t, baseline);
         assertTrue(gate.passed());
         assertTrue(gate.rules().stream().anyMatch(
-                r -> "delta".equals(r.kind()) && r.passed() && r.detail().contains("NO CONFIRMED REGRESSION")));
+                r -> "delta".equals(r.kind()) && r.passed() && r.detail().contains("candidate")));
     }
 
     private static EvalRun withHashes(EvalRun run, String datasetHash, String packHash) {

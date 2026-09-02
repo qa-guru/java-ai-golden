@@ -1,6 +1,6 @@
 # Example eval report (deterministic, generation-v1)
 
-This is a **fixture** eval: every recorded golden still matches the contract and retriever oracle. It is not a live-model score. n=8 at 100% still has a wide Wilson interval.
+This is a **fixture** eval: every recorded golden still matches the contract and retriever oracle. It is not a live-model score.
 
 ```
 AI EVAL
@@ -17,11 +17,11 @@ Passed:       8
 Failed:       0
 Skipped:      0
 Errors:       0
-Pass rate:    100.0% (8 / 8) 95% CI [67.6%, 100.0%] of executed
+Pass rate:    100.0% (8 / 8) of executed
 Coverage:     100.0%
 METRICS
 -------
-Overall:        100.0% (8 / 8) 95% CI [67.6%, 100.0%]
+Overall:        100.0% (8 / 8)
 Contract:       100.0%
 Judge:          n/a
 Retrieval:      100.0%

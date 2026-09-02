@@ -33,8 +33,8 @@ public record ComparisonResult(
             decision = !valid
                     ? "COMPARISON_INVALID"
                     : (qualityGate != null && !qualityGate.passed()
-                            ? "CONFIRMED_REGRESSION"
-                            : "NO_CONFIRMED_REGRESSION");
+                            ? "REGRESSION"
+                            : "NO_REGRESSION");
         }
     }
 

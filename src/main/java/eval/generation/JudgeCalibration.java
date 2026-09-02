@@ -160,9 +160,9 @@ public final class JudgeCalibration {
         md.append("# Judge calibration\n\n");
         md.append("- Live: ").append(report.live()).append('\n');
         md.append("- n: ").append(report.n()).append('\n');
-        md.append("- Accuracy: ").append(report.accuracy().asPercentWithCi()).append('\n');
-        md.append("- Precision (ACCEPT=positive): ").append(report.precision().asPercentWithCi()).append('\n');
-        md.append("- Recall: ").append(report.recall().asPercentWithCi()).append('\n');
+        md.append("- Accuracy: ").append(report.accuracy().asPercentAndCount()).append('\n');
+        md.append("- Precision (ACCEPT=positive): ").append(report.precision().asPercentAndCount()).append('\n');
+        md.append("- Recall: ").append(report.recall().asPercentAndCount()).append('\n');
         md.append("- F1: ").append(report.f1() == null ? "n/a" : String.format(Locale.ROOT, "%.3f", report.f1()))
                 .append('\n');
         md.append("- Confusion TA/FA/FR/TR: ")

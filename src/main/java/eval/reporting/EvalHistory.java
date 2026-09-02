@@ -44,10 +44,6 @@ public final class EvalHistory {
                 if (run.metrics().overallPassRate().defined()) {
                     line.put("overallPassRate", run.metrics().overallPassRate().value());
                 }
-                if (run.metrics().overallPassRate().ci95() != null) {
-                    line.put("ci95Lower", run.metrics().overallPassRate().ci95().lower());
-                    line.put("ci95Upper", run.metrics().overallPassRate().ci95().upper());
-                }
             }
             QualityGateResult gate = run.qualityGate();
             line.put("qualityGate", gate == null ? "NOT_APPLIED" : gate.verdict());

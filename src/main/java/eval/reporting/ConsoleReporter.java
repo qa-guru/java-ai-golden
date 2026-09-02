@@ -53,7 +53,7 @@ public final class ConsoleReporter {
         out.append("METRICS\n");
         out.append("-------\n");
         EvalMetrics m = run.metrics();
-        line(out, "Overall", m.overallPassRate().asPercentWithCi());
+        line(out, "Overall", m.overallPassRate().asPercentAndCount());
         line(out, "Contract", m.contractPassRate().asPercent());
         line(out, "Judge", m.judgeAcceptRate().asPercent());
         line(out, "Retrieval", m.retrievalPassRate().asPercent());
@@ -151,7 +151,7 @@ public final class ConsoleReporter {
         if (!overall.defined()) {
             return "n/a (no quality attempts)";
         }
-        return overall.asPercentWithCi() + " of executed";
+        return overall.asPercentAndCount() + " of executed";
     }
 
     private static void printCases(StringBuilder out, ComparisonResult comparison, CaseRegression want) {
