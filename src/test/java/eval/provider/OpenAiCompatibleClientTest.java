@@ -63,4 +63,12 @@ class OpenAiCompatibleClientTest {
         IllegalArgumentException err = assertThrows(IllegalArgumentException.class, () -> ModelRunners.create(config));
         assertTrue(err.getMessage().contains("cursor"));
     }
+
+    @Test
+    void millLiveModeDefaultsToOllamaRunner() {
+        eval.execution.EvalConfig config = eval.execution.EvalConfig.resolve(new String[]{
+                "--mode=live"
+        });
+        assertTrue(ModelRunners.create(config) instanceof eval.generation.OllamaClient);
+    }
 }

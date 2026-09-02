@@ -1,5 +1,8 @@
 package eval.generation;
 
+import eval.execution.EvalConfig;
+import eval.provider.ModelRunner;
+import eval.provider.ModelRunners;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
@@ -29,29 +32,32 @@ class LiveGenerationContractTest {
     @MethodSource("golden")
     @DisplayName("execute workflow, contract, then judge")
     void executeThenCheck(GoldenCase row) throws Exception {
+        EvalConfig config = EvalConfig.resolve(new String[]{"--mode=live"});
         if (row.expect().isRed()) {
-            Assumptions.assumeTrue(
-                    "true".equals(System.getProperty("red")),
-                    "red 7b rows: -Dred=true");
+            Assumptions.assumeTrue(config.includeRed(), "red 7b rows: -Dred=true");
         }
         var built = WorkflowPrompt.build(row);
-        String raw = OllamaClient.chat(built.system(), row.prompt());
+        ModelRunner runner = ModelRunners.create(config);
+        String raw = runner.complete(built.system(), row.prompt(), config.model()).content();
         Path dir = Path.of("build/live-out");
         Files.createDirectories(dir);
         Files.writeString(dir.resolve(row.id() + ".out.md"), raw, StandardCharsets.UTF_8);
         if (!built.retrieved().isEmpty()) {
             System.out.println("===== RETRIEVE " + row.id() + " =====\n" + String.join(", ", built.retrieved()));
         }
-        System.out.println("===== LIVE " + row.id() + " =====\n" + raw + "\n===== END " + row.id() + " =====");
-        if ("true".equals(System.getProperty("writeFixtures"))) {
+        System.out.println(
+                "===== LIVE " + row.id() + " provider=" + config.provider()
+                        + " model=" + config.model() + " =====\n" + raw
+                        + "\n===== END " + row.id() + " =====");
+        if (config.writeFixtures()) {
             var path = GoldenReader.evalDir().resolve("fixtures").resolve(row.id() + ".out.md");
             Files.writeString(path, raw, StandardCharsets.UTF_8);
         }
         ContractAssertions.assertMatches(row, raw);
-        if (row.expect().refused() || "false".equals(System.getProperty("judge", "true"))) {
+        if (row.expect().refused() || !config.judgeEnabled()) {
             return;
         }
-        String judged = Judge.review(row, raw, built.retrieved());
+        String judged = Judge.review(row, raw, built.retrieved(), runner, config.judgeModel());
         Files.writeString(dir.resolve(row.id() + ".judge.md"), judged, StandardCharsets.UTF_8);
         System.out.println("===== JUDGE " + row.id() + " =====\n" + judged + "\n===== END JUDGE " + row.id() + " =====");
         System.out.println(

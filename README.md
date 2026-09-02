@@ -75,7 +75,7 @@ Layers (packages), not a 500-class framework:
 | `eval.provider` | `ModelRunner` factory: `ollama` (default) or `openai` (OpenAI-compatible HTTP). Cursor agent is a different SUT — not wired. |
 | `eval.cli` | `EvalMain`, exit codes |
 
-Existing mill JUnit tests (`GenerationContractTest`, `LiveGenerationContractTest`, pack tests) stay. The pipeline **reuses** their graders; it does not replace them.
+Existing mill JUnit tests (`GenerationContractTest`, `LiveGenerationContractTest`, pack tests) stay. Live mill uses the same `ModelRunners` factory as the pipeline. The pipeline **reuses** mill graders; it does not replace them.
 
 ## Golden dataset
 
@@ -281,7 +281,7 @@ OpenAI-compatible: `--provider=openai` and `-DopenaiBaseUrl=` / `OPENAI_API_KEY`
 
 System properties overlay `eval.json`: `model`, `judgeModel`, `judge`, `repetitions`, `red`, `gate`, `outputDir`, `baseline`, `live`, `provider`, `saveBaseline`.
 
-Mill camera flags are unchanged: `-Dlive=true -DincludeTags=live`, `-Dred=true`, `-Djudge=false`, `-DwriteFixtures=true`.
+Mill camera flags are unchanged: `-Dlive=true -DincludeTags=live`, `-Dred=true`, `-Djudge=false`, `-DwriteFixtures=true`. Mill live uses the same `ModelRunners` factory as the pipeline (`-Dprovider=openai` works there too). Default remains Ollama.
 
 ## Cheap PR eval vs full eval
 

@@ -73,6 +73,7 @@ e2e id = история формы. HTTP 401 — в `login-401-api` и в `must_
 | `-Djudge=false` | только контракт, без второго вызова LLM |
 | `-Dmodel=…` / `-DjudgeModel=…` | другая модель |
 | `-DwriteFixtures=true` | перезаписать `fixtures/` ответом модели — не коммитить с эхом 7b |
+| `-Dprovider=openai` | тот же factory, что у пайплайна; по умолчанию Ollama |
 
 ## Куда смотреть
 

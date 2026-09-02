@@ -26,16 +26,20 @@ public final class Judge {
     private Judge() {
     }
 
-    public static String review(GoldenCase row, String candidate) throws IOException, InterruptedException {
+    public static String review(GoldenCase row, String candidate)
+            throws eval.provider.EvalInfrastructureException, InterruptedException {
         return review(row, candidate, List.of());
     }
 
     public static String review(GoldenCase row, String candidate, List<String> retrieved)
-            throws IOException, InterruptedException {
-        String model = System.getProperty(
-                "judgeModel",
-                System.getProperty("model", "qwen2.5-coder:7b"));
-        return review(row, candidate, retrieved, new OllamaClient(), model);
+            throws eval.provider.EvalInfrastructureException, InterruptedException {
+        eval.execution.EvalConfig config = eval.execution.EvalConfig.resolve(new String[]{"--mode=live"});
+        return review(
+                row,
+                candidate,
+                retrieved,
+                eval.provider.ModelRunners.create(config),
+                config.judgeModel());
     }
 
     public static String review(

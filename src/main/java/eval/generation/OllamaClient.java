@@ -19,7 +19,7 @@ import java.net.http.HttpTimeoutException;
 import java.time.Duration;
 
 /**
- * Ollama HTTP adapter. Mill live tests keep calling {@link #chat}. Eval pipeline uses {@link #complete}.
+ * Ollama HTTP adapter. Mill live tests and the eval pipeline both go through {@link #complete}.
  */
 public final class OllamaClient implements ModelRunner {
 
@@ -29,14 +29,6 @@ public final class OllamaClient implements ModelRunner {
             .build();
 
     public OllamaClient() {
-    }
-
-    static String chat(String system, String user) throws IOException, InterruptedException {
-        return chat(system, user, System.getProperty("model", "qwen2.5-coder:7b"));
-    }
-
-    static String chat(String system, String user, String model) throws IOException, InterruptedException {
-        return new OllamaClient().complete(system, user, model).content();
     }
 
     @Override
