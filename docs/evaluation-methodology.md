@@ -165,7 +165,7 @@ Every defined rate carries a **Wilson 95% CI**. n=10 at 100% is still a wide int
 
 Same bytes after reorder → same hash. Edit a prompt → different hash. Duplicate or missing `id` → hard error.
 
-Do not compare runs with different `datasetVersion` or (when both present) different `datasetHash`. That is `COMPARISON INVALID`, not a fake percentage.
+Do not compare runs with different `datasetVersion` or different `datasetHash`. Missing hash on one side only is also `COMPARISON INVALID` (legacy snapshots must be recaptured). That is not a fake percentage.
 
 ## Configuration fingerprint
 
@@ -263,8 +263,8 @@ Each artifact write appends one line to `build/eval/history.jsonl`: timestamp, c
 | Where | Command | LLM |
 |---|---|---|
 | PR (GitHub Actions, `ubuntu-latest`) | `./gradlew test evalDeterministic evalRegression evalHoldout evalHoldoutRegression evalJudgeCalibration` | no |
-| Live smoke (Box2 self-hosted, dispatch) | `./gradlew evalLive` then `evalLiveRegression` | yes, skip red |
-| NIGHTLY (Box2 self-hosted, cron) | `./gradlew evalNightly` then `evalNightlyRegression` | yes, red + 5 reps |
+| Live smoke (Box2 self-hosted, dispatch) | `evalLive` then compare-only vs live baseline | yes once, skip red |
+| NIGHTLY (Box2 self-hosted, cron) | `evalNightly` then compare-only vs nightly baseline | yes once, red + 5 reps |
 | Local live | same Gradle tasks, local Ollama | yes |
 
 GitHub-hosted `ubuntu-latest` has no Ollama. Do not make live LLM required for every PR.

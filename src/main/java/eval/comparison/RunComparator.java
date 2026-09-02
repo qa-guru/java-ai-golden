@@ -37,10 +37,9 @@ public final class RunComparator {
                     "COMPARISON INVALID: datasetVersion mismatch: "
                             + baseline.datasetVersion() + " vs " + candidate.datasetVersion());
         }
-        if (baseline.datasetHash() != null && candidate.datasetHash() != null
-                && !baseline.datasetHash().equals(candidate.datasetHash())) {
+        if (!java.util.Objects.equals(baseline.datasetHash(), candidate.datasetHash())) {
             return ComparisonResult.invalid(
-                    "COMPARISON INVALID: datasetHash mismatch (dataset content changed without a version bump)");
+                    "COMPARISON INVALID: datasetHash mismatch (dataset content changed without a version bump, or a live snapshot is missing datasetHash)");
         }
         if (baseline.packDatasetVersion() != null && candidate.packDatasetVersion() != null
                 && !baseline.packDatasetVersion().equals(candidate.packDatasetVersion())) {
@@ -272,14 +271,7 @@ public final class RunComparator {
     }
 
     static boolean isPass(CaseResult cse) {
-        if (cse.status() == EvalStatus.SKIPPED || cse.status() == EvalStatus.ERROR) {
-            return false;
-        }
-        if (cse.status() == EvalStatus.PASS) {
-            return true;
-        }
-        Rate rate = cse.successRate();
-        return rate != null && rate.defined() && rate.hits() == rate.total() && rate.total() > 0;
+        return cse.status() == EvalStatus.PASS;
     }
 
     static Rate success(CaseResult cse) {

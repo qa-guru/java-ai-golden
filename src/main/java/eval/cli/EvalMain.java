@@ -39,6 +39,14 @@ public final class EvalMain {
             System.err.println("USAGE: " + e.getMessage());
             return ExitCode.USAGE;
         }
+        if (config.saveBaselinePath() != null
+                && Files.isRegularFile(config.saveBaselinePath())
+                && !config.forceSaveBaseline()) {
+            System.err.println(
+                    "USAGE: " + config.saveBaselinePath()
+                            + " already exists. Pass --force-save-baseline (or -DforceSaveBaseline=true) to overwrite.");
+            return ExitCode.USAGE;
+        }
         try {
             return switch (config.mode()) {
                 case DETERMINISTIC, LIVE -> runOnce(config, null);
@@ -124,7 +132,36 @@ public final class EvalMain {
                 return ExitCode.COMPARISON_INVALID;
             }
         }
+        if (config.candidatePath() != null) {
+            return compareExisting(config, baseline);
+        }
         return runOnce(config, baseline);
+    }
+
+    static int compareExisting(EvalConfig config, EvalRun baseline) {
+        Path path = config.candidatePath();
+        if (path == null || !Files.isRegularFile(path)) {
+            System.err.println("REGRESSION --candidate must be an existing run.json");
+            return ExitCode.USAGE;
+        }
+        EvalRun run = ReportIo.readRun(path);
+        ComparisonResult comparison = RunComparator.compare(baseline, run, config.thresholds());
+        Path dir = config.outputDir().resolve(run.runId());
+        try {
+            Files.createDirectories(dir);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        ReportIo.writeJson(dir.resolve("comparison.json"), comparison);
+        try {
+            Files.writeString(dir.resolve("eval-report.md"), MarkdownReporter.render(run, comparison));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        System.out.print(ConsoleReporter.render(run, comparison));
+        System.out.println("Compared " + path.toAbsolutePath() + " vs " + config.baselinePath());
+        System.out.println("Wrote " + dir.toAbsolutePath());
+        return exit(run, comparison);
     }
 
     static int runBenchmark(EvalConfig config) {
@@ -211,7 +248,9 @@ public final class EvalMain {
                   --repetitions=N
                   --output=DIR
                   --baseline=PATH
+                  --candidate=PATH
                   --save-baseline=PATH
+                  --force-save-baseline
                   --models=a,b,c
                   --red
                   --live

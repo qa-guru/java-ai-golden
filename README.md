@@ -178,7 +178,7 @@ Paired summary: unchanged pass/fail, regressions, improvements. McNemar is infor
 
 Committed baseline `baselines/generation-v1.json` is the **deterministic fixture** snapshot.
 
-Live baseline `baselines/live-generation-v1.json` is a **model** snapshot (non-red rows, 1 attempt). Capture:
+Live baseline `baselines/live-generation-v1.json` is a **model** snapshot (non-red rows, 1 attempt). Recaptured from Selectel Box2 Ollama (`qwen2.5-coder:7b`, GHA live smoke). Must include `datasetHash` / `datasetSplit`. Capture:
 
 ```bash
 ./gradlew run --args='--mode=live --judge=true --artifacts=always --save-baseline=baselines/live-generation-v1.json --force-save-baseline'
@@ -241,14 +241,14 @@ Live LLM runs on a **self-hosted** runner (`selectel-java-ai-golden`, labels `ol
 | Where | Command | LLM |
 |---|---|---|
 | PR ([`ci.yml`](.github/workflows/ci.yml)) `ubuntu-latest` | `./gradlew test evalDeterministic evalRegression evalHoldout evalHoldoutRegression evalJudgeCalibration` | no |
-| Live smoke (Box2, `workflow_dispatch`) | `./gradlew evalLive` then `evalLiveRegression` | yes, skip red |
-| NIGHTLY (Box2, cron 02:00 MSK + dispatch) | `./gradlew evalNightly` then `evalNightlyRegression` | yes, red + 5 reps |
+| Live smoke (Box2, `workflow_dispatch`) | `evalLive`, then `evalLiveRegression -Dcandidate=$LATEST/run.json` | yes once, skip red |
+| NIGHTLY (Box2, cron 02:00 MSK + dispatch) | `evalNightly` (~30 min CPU), then compare-only `evalNightlyRegression -Dcandidate=…` | yes once, red + 5 reps |
 | MAIN live smoke (local Ollama) | same Gradle tasks as live smoke | yes, skip red |
 | Holdout (final, not tuning) | `./gradlew evalHoldout` then `evalHoldoutRegression` | no |
 | Judge calibration (canned) | `./gradlew evalJudgeCalibration` | no |
 | Judge calibration (live, local) | `./gradlew evalJudgeCalibrationLive` | yes |
 
-CPU inference is slower than a laptop GPU. Jobs set `OLLAMA_TIMEOUT_MINUTES=10` (mill default remains 3). Do not add a live job without the `ollama` + `java-ai-golden` labels — other Box2 runners (`selectel-niffler` / `book-club` / `realworld`) have no model.
+CPU inference is slower than a laptop GPU. Box2 nightly is ~30 min for 40 attempts, not an hour: regression must reuse `build/eval/LATEST/run.json` (`-Dcandidate=`). Do not run the 5-rep protocol twice. Jobs set `OLLAMA_TIMEOUT_MINUTES=10` (mill default remains 3). Do not add a live job without the `ollama` + `java-ai-golden` labels — other Box2 runners (`selectel-niffler` / `book-club` / `realworld`) have no model.
 
 ## Reports
 

@@ -22,8 +22,4 @@ public record QualityGateResult(
     public static QualityGateResult fail(List<GateRuleResult> rules) {
         return new QualityGateResult(false, "FAIL", rules);
     }
-
-    public static QualityGateResult skipped(String why) {
-        return new QualityGateResult(true, "SKIPPED", List.of(new GateRuleResult("gate", why, true, null, null, null)));
-    }
 }

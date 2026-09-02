@@ -202,6 +202,42 @@ class RunComparatorTest {
     }
 
     @Test
+    void missingDatasetHashVersusPresentIsInvalid() {
+        EvalRun unhashed = run("a", "generation-v1", List.of(passing("1")));
+        EvalRun hashed = new EvalRun(
+                "b",
+                unhashed.timestamp(),
+                unhashed.model(),
+                unhashed.judgeModel(),
+                unhashed.datasetVersion(),
+                unhashed.packDatasetVersion(),
+                "aaa",
+                unhashed.gitCommit(),
+                unhashed.experimentId(),
+                unhashed.configFingerprint(),
+                unhashed.configuration(),
+                unhashed.casesTotal(),
+                unhashed.casesPassed(),
+                unhashed.casesFailed(),
+                unhashed.casesSkipped(),
+                unhashed.casesError(),
+                unhashed.attemptsTotal(),
+                unhashed.attemptsPassed(),
+                unhashed.attemptsFailed(),
+                unhashed.attemptsSkipped(),
+                unhashed.attemptsError(),
+                unhashed.metrics(),
+                unhashed.cases(),
+                unhashed.durationMs(),
+                unhashed.qualityGate());
+        ComparisonResult missingBaseline = RunComparator.compare(unhashed, hashed);
+        ComparisonResult missingCandidate = RunComparator.compare(hashed, unhashed);
+        assertFalse(missingBaseline.valid());
+        assertFalse(missingCandidate.valid());
+        assertTrue(missingBaseline.invalidReason().contains("datasetHash"));
+    }
+
+    @Test
     void skippedVersusSkippedIsNotUnchangedFail() {
         CaseResult skip = new CaseResult(
                 "red-1",
@@ -221,6 +257,47 @@ class RunComparatorTest {
         assertEquals(1, result.unchangedPass());
         assertEquals(0, result.unchangedFail());
         assertEquals(CaseRegression.UNCHANGED_SKIPPED, find(result, "red-1"));
+    }
+
+    @Test
+    void caseFailWithPerfectAttemptRateIsStillARegression() {
+        CaseResult retrievalOverlayFail = new CaseResult(
+                "GEN-001",
+                EvalStatus.FAIL,
+                Set.of(CaseKind.GENERATION, CaseKind.RETRIEVAL),
+                List.of(new AttemptResult(
+                        1,
+                        EvalStatus.PASS,
+                        ContractResult.pass(),
+                        null,
+                        "out",
+                        null,
+                        TokenUsage.unknown(),
+                        5,
+                        null,
+                        null)),
+                ContractResult.pass(),
+                null,
+                eval.domain.RetrievalResult.of(List.of("extra"), List.of("po-fluent")),
+                Rate.of(1, 1),
+                List.of(),
+                5,
+                Map.of());
+        EvalRun baseline = run("b", "generation-v1", List.of(passing("GEN-001")));
+        EvalRun candidate = run("c", "generation-v1", List.of(retrievalOverlayFail));
+        ComparisonResult result = RunComparator.compare(baseline, candidate);
+        assertTrue(result.valid());
+        assertEquals(CaseRegression.NEW_FAILURE, find(result, "GEN-001"));
+    }
+
+    @Test
+    void addedOrRemovedCaseFailsGate() {
+        EvalRun baseline = run("b", "generation-v1", List.of(passing("A"), passing("B")));
+        EvalRun candidate = run("c", "generation-v1", List.of(passing("A"), passing("C")));
+        QualityGateResult gate = QualityGate.evaluate(candidate, Thresholds.liveDelta(), baseline);
+        assertFalse(gate.passed());
+        assertTrue(gate.rules().stream().anyMatch(r -> r.name().startsWith("removed.")));
+        assertTrue(gate.rules().stream().anyMatch(r -> r.name().startsWith("added.")));
     }
 
     @Test

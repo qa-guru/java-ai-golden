@@ -62,11 +62,30 @@ public final class Judge {
         }
         JudgeResult json = tryParseJson(judgeOut);
         if (json != null && json.schemaValid()) {
+            if (hasVerdictLine(judgeOut)) {
+                Verdict line = parseVerdictLine(judgeOut);
+                if (toDecision(line) != json.decision()) {
+                    return JudgeResult.invalidSchema(
+                            judgeOut, "judge VERDICT line disagrees with JSON decision");
+                }
+            }
             return json;
         }
         Verdict v = parseVerdictLine(judgeOut);
         List<String> reasons = json == null ? List.of() : json.reasons();
         return new JudgeResult(toDecision(v), null, reasons, json == null, judgeOut);
+    }
+
+    static boolean hasVerdictLine(String judgeOut) {
+        if (judgeOut == null) {
+            return false;
+        }
+        for (String line : judgeOut.split("\\R")) {
+            if (line.strip().toUpperCase(Locale.ROOT).contains("VERDICT:")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     static Verdict parseVerdictLine(String judgeOut) {

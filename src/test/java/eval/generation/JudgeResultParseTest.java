@@ -56,6 +56,16 @@ class JudgeResultParseTest {
     }
 
     @Test
+    void jsonDisagreeingWithVerdictLineIsPending() {
+        JudgeResult result = Judge.parseResult("""
+                VERDICT: НЕ ПРИНЯТО
+                {"decision":"ACCEPT","score":0.9,"reasons":["looks fine"]}
+                """);
+        assertEquals(JudgeDecision.PENDING, result.decision());
+        assertFalse(result.schemaValid());
+    }
+
+    @Test
     void freeTextWithoutVerdictIsPending() {
         JudgeResult result = Judge.parseResult("Looks good, I think the test is fine.");
         assertEquals(JudgeDecision.PENDING, result.decision());

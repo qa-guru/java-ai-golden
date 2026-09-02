@@ -52,6 +52,7 @@ class EvalExecutorTest {
         assertTrue(tmp.resolve(run.runId()).resolve("run.json").toFile().isFile());
         assertTrue(tmp.resolve(run.runId()).resolve("summary.json").toFile().isFile());
         assertTrue(tmp.resolve(run.runId()).resolve("eval-report.md").toFile().isFile());
+        assertTrue(java.nio.file.Files.isRegularFile(tmp.resolve("LATEST")));
     }
 
     @Test
@@ -112,7 +113,7 @@ class EvalExecutorTest {
     }
 
     @Test
-    void liveGateAgainstFixtureBaselineIsSkipped() {
+    void liveGateAgainstFixtureBaselineFails() {
         EvalConfig config = EvalConfig.resolve(new String[]{
                 "--mode=live",
                 "--judge=false",
@@ -124,8 +125,10 @@ class EvalExecutorTest {
         ModelRunner runner = (system, user, model) -> new ModelResponse(
                 fixtureFor(user), TokenUsage.of(1, 1), 8);
         EvalRun run = new EvalExecutor(config, runner).execute();
-        assertEquals("SKIPPED", run.qualityGate().verdict());
-        assertTrue(run.qualityGate().passed());
+        assertEquals("FAIL", run.qualityGate().verdict());
+        assertTrue(!run.qualityGate().passed());
+        assertTrue(run.qualityGate().rules().stream().anyMatch(r -> "baseline".equals(r.name())));
+        assertEquals(ExitCode.QUALITY_GATE_FAILED, EvalMain.exit(run, null));
     }
 
     @Test
@@ -155,7 +158,7 @@ class EvalExecutorTest {
     }
 
     @Test
-    void liveGateAgainstMismatchedProtocolBaselineIsSkipped() {
+    void liveGateAgainstMismatchedProtocolBaselineFails() {
         EvalConfig config = EvalConfig.resolve(new String[]{
                 "--mode=live",
                 "--red",
@@ -169,8 +172,55 @@ class EvalExecutorTest {
         ModelRunner runner = (system, user, model) -> new ModelResponse(
                 fixtureFor(user), TokenUsage.of(1, 1), 8);
         EvalRun run = new EvalExecutor(config, runner).execute();
-        assertEquals("SKIPPED", run.qualityGate().verdict());
-        assertTrue(run.qualityGate().passed());
+        assertEquals("FAIL", run.qualityGate().verdict());
+        assertTrue(!run.qualityGate().passed());
+        assertTrue(run.qualityGate().rules().stream()
+                .anyMatch(r -> r.detail() != null && r.detail().contains("COMPARISON INVALID")));
+    }
+
+    @Test
+    void mixedPassAndErrorIsCaseErrorNotPass() {
+        EvalConfig config = EvalConfig.resolve(new String[]{
+                "--mode=live",
+                "--judge=false",
+                "--repetitions=2",
+                "--red",
+                "--output=" + tmp,
+                "--artifacts=never"
+        });
+        java.util.concurrent.atomic.AtomicInteger calls = new java.util.concurrent.atomic.AtomicInteger();
+        ModelRunner runner = (system, user, model) -> {
+            if (calls.incrementAndGet() % 2 == 0) {
+                throw new EvalInfrastructureException(EvalInfrastructureException.TIMEOUT, "timeout");
+            }
+            return new ModelResponse(fixtureFor(user), TokenUsage.of(1, 1), 8);
+        };
+        EvalRun run = new EvalExecutor(config, runner).execute();
+        assertEquals(8, run.casesError());
+        assertEquals(0, run.casesPassed());
+        assertEquals(8, run.attemptsPassed());
+        assertEquals(8, run.attemptsError());
+        assertEquals(ExitCode.INFRASTRUCTURE_FAILURE, EvalMain.exit(run, null));
+    }
+
+    @Test
+    void liveFlagWithoutModeSelectsLive() {
+        EvalConfig config = EvalConfig.resolve(new String[]{"--live", "--judge=false", "--output=" + tmp});
+        assertTrue(config.usesModel());
+        assertEquals(eval.domain.EvalMode.LIVE, config.mode());
+    }
+
+    @Test
+    void candidateRegressionComparesJsonWithoutCallingAModel() {
+        int code = EvalMain.run(new String[]{
+                "--mode=regression",
+                "--gate",
+                "--baseline=baselines/generation-v1.json",
+                "--candidate=baselines/generation-v1.json",
+                "--output=" + tmp,
+                "--artifacts=never"
+        });
+        assertEquals(ExitCode.SUCCESS, code);
     }
 
     private static String fixtureFor(String user) {

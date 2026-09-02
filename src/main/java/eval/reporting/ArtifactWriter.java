@@ -62,7 +62,20 @@ public final class ArtifactWriter {
             }
         }
         if (config.saveBaselinePath() != null) {
+            if (Files.isRegularFile(config.saveBaselinePath()) && !config.forceSaveBaseline()) {
+                throw new IllegalStateException(
+                        config.saveBaselinePath()
+                                + " already exists; pass --force-save-baseline to overwrite");
+            }
             ReportIo.writeJson(config.saveBaselinePath(), slim);
+        }
+        try {
+            Files.writeString(
+                    config.outputDir().resolve("LATEST"),
+                    dir.toAbsolutePath() + System.lineSeparator(),
+                    StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
         return dir;
     }

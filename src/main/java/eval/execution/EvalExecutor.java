@@ -9,6 +9,7 @@ import eval.domain.EvalRun;
 import eval.domain.EvalStatus;
 import eval.domain.JudgeDecision;
 import eval.domain.JudgeResult;
+import eval.domain.GateRuleResult;
 import eval.domain.QualityGateResult;
 import eval.domain.Rate;
 import eval.domain.RetrievalResult;
@@ -141,24 +142,45 @@ public final class EvalExecutor {
                 cases,
                 durationMs,
                 null);
-        QualityGateResult gate = null;
-        if (config.applyGate()) {
-            EvalRun baseline = loadBaselineIfPresent(config);
-            if (baseline != null && config.datasetVersion() != null
-                    && !config.datasetVersion().equals(baseline.datasetVersion())) {
-                baseline = null;
-            }
-            if (config.usesModel() && !isModelSnapshot(baseline)) {
-                gate = QualityGateResult.skipped("live quality gate needs a live baseline file");
-            } else if (config.usesModel()
-                    && RunComparator.protocolMismatch(baseline, config.repetitions(), config.includeRed()) != null) {
-                gate = QualityGateResult.skipped(
-                        "live quality gate needs a matching protocol baseline (repetitions, includeRed)");
-            } else {
-                gate = QualityGate.evaluate(draft, config.thresholds(), baseline);
-            }
-        }
+        QualityGateResult gate = config.applyGate() ? resolveGate(draft) : null;
         return draft.withQualityGate(gate);
+    }
+
+    private QualityGateResult resolveGate(EvalRun draft) {
+        EvalRun baseline = loadBaselineIfPresent(config);
+        if (config.usesModel()) {
+            if (baseline == null) {
+                return QualityGate.unusableBaseline("live quality gate needs a live baseline file");
+            }
+            if (!isModelSnapshot(baseline)) {
+                return QualityGate.unusableBaseline(
+                        "live quality gate needs a live baseline, not a fixture snapshot");
+            }
+            var probe = RunComparator.compare(baseline, draft, null);
+            if (!probe.valid()) {
+                return QualityGate.unusableBaseline(probe.invalidReason());
+            }
+            return QualityGate.evaluate(draft, config.thresholds(), baseline);
+        }
+        if (baseline == null) {
+            return QualityGate.evaluate(draft, config.thresholds(), null);
+        }
+        var probe = RunComparator.compare(baseline, draft, null);
+        if (!probe.valid()) {
+            QualityGateResult absolute = QualityGate.evaluate(draft, config.thresholds(), null);
+            ArrayList<GateRuleResult> rules = new ArrayList<>();
+            rules.add(new GateRuleResult(
+                    "baseline",
+                    "ignored incompatible baseline (" + probe.invalidReason()
+                            + "); absolute thresholds only",
+                    true,
+                    null,
+                    null,
+                    "execution"));
+            rules.addAll(absolute.rules());
+            return absolute.passed() ? QualityGateResult.pass(rules) : QualityGateResult.fail(rules);
+        }
+        return QualityGate.evaluate(draft, config.thresholds(), baseline);
     }
 
     public static boolean isModelSnapshot(EvalRun run) {
@@ -322,7 +344,10 @@ public final class EvalExecutor {
         if (allSkipped) {
             return EvalStatus.SKIPPED;
         }
-        if (!anyQuality && anyError) {
+        if (anyError && !anyQuality) {
+            return EvalStatus.ERROR;
+        }
+        if (anyError && allPass) {
             return EvalStatus.ERROR;
         }
         if (anyQuality && allPass) {

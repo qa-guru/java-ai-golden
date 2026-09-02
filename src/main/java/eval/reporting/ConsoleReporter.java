@@ -5,6 +5,7 @@ import eval.domain.CaseRegression;
 import eval.domain.ComparisonResult;
 import eval.domain.EvalMetrics;
 import eval.domain.EvalRun;
+import eval.domain.GateRuleResult;
 import eval.domain.MetricDelta;
 import eval.domain.QualityGateResult;
 import eval.domain.Rate;
@@ -107,6 +108,18 @@ public final class ConsoleReporter {
             out.append("SKIPPED\n");
         } else {
             out.append(gate.verdict()).append('\n');
+            boolean anyFail = false;
+            for (GateRuleResult rule : gate.rules()) {
+                if (!rule.passed()) {
+                    anyFail = true;
+                    out.append("- ").append(rule.name()).append(": ").append(rule.detail()).append('\n');
+                }
+            }
+            if (gate.passed()) {
+                out.append("Allowed because every recorded rule passed.\n");
+            } else if (!anyFail) {
+                out.append("- (no rule details)\n");
+            }
         }
         return out.toString();
     }

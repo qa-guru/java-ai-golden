@@ -1,6 +1,7 @@
 package eval.reporting;
 
 import eval.domain.EvalRun;
+import eval.generation.GoldenReader;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -55,6 +56,9 @@ class BaselineIoTest {
         assertEquals(1, run.configuration().repetitions());
         assertEquals(false, run.configuration().includeRed());
         assertEquals("ollama", run.configuration().provider());
+        assertEquals("development", run.configuration().datasetSplit());
+        assertTrue(run.datasetHash() != null && run.datasetHash().length() == 64);
+        assertEquals(GoldenReader.datasetHash(), run.datasetHash());
     }
 
     @Test
@@ -77,5 +81,16 @@ class BaselineIoTest {
         assertEquals(5, run.configuration().repetitions());
         assertEquals(true, run.configuration().includeRed());
         assertEquals("ollama", run.configuration().provider());
+    }
+
+    @Test
+    void saveBaselineRefusesOverwriteWithoutForce() {
+        int code = eval.cli.EvalMain.run(new String[]{
+                "--mode=deterministic",
+                "--save-baseline=baselines/generation-v1.json",
+                "--artifacts=never",
+                "--output=build/eval-save-guard"
+        });
+        assertEquals(eval.cli.ExitCode.USAGE, code);
     }
 }

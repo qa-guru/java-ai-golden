@@ -44,6 +44,7 @@ class HoldoutDatasetTest {
                 "--mode=deterministic",
                 "--split=holdout",
                 "--gate",
+                "--baseline=baselines/holdout-v1.json",
                 "--artifacts=never",
                 "--output=build/eval-holdout-test"
         });

@@ -26,7 +26,8 @@ def ollamaProps = [
         'live', 'model', 'judgeModel', 'judge', 'ollamaHost', 'writeFixtures', 'red',
         'repetitions', 'mode', 'outputDir', 'baseline', 'gate', 'evalConfig', 'artifacts',
         'provider', 'openaiBaseUrl', 'openaiApiKey', 'saveBaseline',
-        'experiment', 'datasetSplit', 'judgeRepetitions'
+        'experiment', 'datasetSplit', 'judgeRepetitions', 'forceSaveBaseline',
+        'ollamaTimeoutMinutes', 'candidate'
 ]
 
 dependencies {
@@ -115,7 +116,7 @@ tasks.register('evalNightly', JavaExec) {
 
 tasks.register('evalNightlyRegression', JavaExec) {
     group = 'eval'
-    description = 'Compare nightly protocol (red, 5 reps) to baselines/nightly-generation-v1.json'
+    description = 'Compare nightly protocol to baselines/nightly-generation-v1.json. Pass -Dcandidate=run.json to skip a second live execution.'
     classpath = evalClasspath
     mainClass = 'eval.cli.EvalMain'
     workingDir = layout.projectDirectory
@@ -135,7 +136,8 @@ tasks.register('evalHoldout', JavaExec) {
     classpath = evalClasspath
     mainClass = 'eval.cli.EvalMain'
     workingDir = layout.projectDirectory
-    args '--mode=deterministic', '--split=holdout', '--gate', '--artifacts=failure'
+    args '--mode=deterministic', '--split=holdout', '--gate', '--artifacts=failure',
+            '--baseline=baselines/holdout-v1.json'
 }
 
 tasks.register('evalHoldoutRegression', JavaExec) {
@@ -173,7 +175,7 @@ tasks.register('evalJudgeCalibrationLive', JavaExec) {
 
 tasks.register('evalLiveRegression', JavaExec) {
     group = 'eval'
-    description = 'Compare live run to baselines/live-generation-v1.json (delta gate, not 100% absolute)'
+    description = 'Compare live run to baselines/live-generation-v1.json (delta gate). Pass -Dcandidate=run.json to skip a second live execution.'
     classpath = evalClasspath
     mainClass = 'eval.cli.EvalMain'
     workingDir = layout.projectDirectory

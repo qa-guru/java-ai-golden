@@ -66,6 +66,26 @@ public final class QualityGate {
 
         if (pairs != null) {
             for (CaseComparison pair : pairs) {
+                if (pair.regression() == CaseRegression.ADDED) {
+                    rules.add(new GateRuleResult(
+                            "added." + pair.caseId(),
+                            "candidate has a case that is not in the baseline — not a fair comparison",
+                            false,
+                            null,
+                            null,
+                            "identity"));
+                    continue;
+                }
+                if (pair.regression() == CaseRegression.REMOVED) {
+                    rules.add(new GateRuleResult(
+                            "removed." + pair.caseId(),
+                            "candidate lost a case that was in the baseline — not a fair comparison",
+                            false,
+                            null,
+                            null,
+                            "identity"));
+                    continue;
+                }
                 if (pair.regression() != CaseRegression.NEW_FAILURE) {
                     continue;
                 }
@@ -86,6 +106,11 @@ public final class QualityGate {
 
         boolean passed = rules.stream().allMatch(GateRuleResult::passed);
         return passed ? QualityGateResult.pass(rules) : QualityGateResult.fail(rules);
+    }
+
+    public static QualityGateResult unusableBaseline(String why) {
+        return QualityGateResult.fail(List.of(
+                new GateRuleResult("baseline", why, false, null, null, "execution")));
     }
 
     private static void addMin(

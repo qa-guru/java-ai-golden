@@ -29,6 +29,8 @@ public final class EvalConfig {
     private Path outputDir = Path.of("build/eval");
     private Path baselinePath = Path.of("baselines/generation-v1.json");
     private Path saveBaselinePath;
+    private boolean forceSaveBaseline;
+    private Path candidatePath;
     private List<String> benchmarkModels = List.of();
     private boolean includeRed = false;
     private boolean applyGate = false;
@@ -106,6 +108,14 @@ public final class EvalConfig {
         return saveBaselinePath;
     }
 
+    public boolean forceSaveBaseline() {
+        return forceSaveBaseline;
+    }
+
+    public Path candidatePath() {
+        return candidatePath;
+    }
+
     public List<String> benchmarkModels() {
         return benchmarkModels;
     }
@@ -180,6 +190,8 @@ public final class EvalConfig {
         copy.outputDir = this.outputDir;
         copy.baselinePath = this.baselinePath;
         copy.saveBaselinePath = this.saveBaselinePath;
+        copy.forceSaveBaseline = this.forceSaveBaseline;
+        copy.candidatePath = this.candidatePath;
         copy.benchmarkModels = this.benchmarkModels;
         copy.includeRed = this.includeRed;
         copy.applyGate = this.applyGate;
@@ -343,6 +355,13 @@ public final class EvalConfig {
         if (saveBaseline != null) {
             config.saveBaselinePath = Path.of(saveBaseline);
         }
+        if ("true".equals(System.getProperty("forceSaveBaseline"))) {
+            config.forceSaveBaseline = true;
+        }
+        String candidate = System.getProperty("candidate");
+        if (candidate != null) {
+            config.candidatePath = Path.of(candidate);
+        }
         String experiment = System.getProperty("experiment");
         if (experiment != null) {
             config.experimentId = experiment;
@@ -385,6 +404,10 @@ public final class EvalConfig {
                 config.baselinePath = Path.of(arg.substring("--baseline=".length()));
             } else if (arg.startsWith("--save-baseline=")) {
                 config.saveBaselinePath = Path.of(arg.substring("--save-baseline=".length()));
+            } else if (arg.equals("--force-save-baseline") || "--force-save-baseline=true".equals(arg)) {
+                config.forceSaveBaseline = true;
+            } else if (arg.startsWith("--candidate=")) {
+                config.candidatePath = Path.of(arg.substring("--candidate=".length()));
             } else if (arg.startsWith("--models=")) {
                 config.benchmarkModels = splitCsv(arg.substring("--models=".length()));
             } else if (arg.startsWith("--red=")) {
@@ -399,6 +422,9 @@ public final class EvalConfig {
                 config.artifactMode = ArtifactMode.parse(arg.substring("--artifacts=".length()));
             } else if (arg.equals("--live") || "--live=true".equals(arg)) {
                 config.live = true;
+                if (config.mode == EvalMode.DETERMINISTIC) {
+                    config.mode = EvalMode.LIVE;
+                }
             } else if (arg.startsWith("--provider=")) {
                 config.provider = arg.substring("--provider=".length()).strip().toLowerCase(Locale.ROOT);
             } else if (arg.startsWith("--openaiBaseUrl=")) {

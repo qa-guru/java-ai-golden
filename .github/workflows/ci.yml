@@ -78,7 +78,7 @@ jobs:
       - name: Live smoke
         run: ./gradlew evalLive --console=plain
       - name: Live regression vs committed baseline
-        run: ./gradlew evalLiveRegression --console=plain
+        run: ./gradlew evalLiveRegression -Dcandidate="$(tr -d '\n' < build/eval/LATEST)/run.json" --console=plain
       - name: Upload live eval artifacts
         if: always()
         uses: actions/upload-artifact@v7
@@ -114,7 +114,7 @@ jobs:
       - name: Nightly protocol (red, 5 reps)
         run: ./gradlew evalNightly --console=plain
       - name: Nightly regression vs committed baseline
-        run: ./gradlew evalNightlyRegression --console=plain
+        run: ./gradlew evalNightlyRegression -Dcandidate="$(tr -d '\n' < build/eval/LATEST)/run.json" --console=plain
       - name: Upload nightly eval artifacts
         if: always()
         uses: actions/upload-artifact@v7
