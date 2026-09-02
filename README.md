@@ -221,15 +221,15 @@ Statuses: `PASS` | `FAIL` | `SKIPPED` (red rows without `--red`) | `ERROR` (infr
 
 ## CI
 
-| Job | Command | LLM |
+GitHub-hosted `ubuntu-latest` has **no Ollama**. Live or nightly on that runner is always `INFRASTRUCTURE_FAILURE`, not a model score. This repo does **not** install Ollama in Actions and does **not** expose live/nightly as `workflow_dispatch`.
+
+| Where | Command | LLM |
 |---|---|---|
-| PR | `./gradlew test` then `./gradlew evalDeterministic` then `./gradlew evalRegression` | no |
-| Merge / limited live | `./gradlew evalLive` then `./gradlew evalLiveRegression` | yes, skips `red` rows |
-| Nightly | `./gradlew evalNightlyRegression` (red, 5 reps, vs `baselines/nightly-generation-v1.json`) | yes, full |
+| GitHub Actions ([`ci.yml`](.github/workflows/ci.yml)) | `./gradlew test evalDeterministic evalRegression` | no |
+| Local (Ollama + `qwen2.5-coder:7b`) | `./gradlew evalLive` then `evalLiveRegression` | yes, skip red |
+| Local nightly | `./gradlew evalNightlyRegression` | yes, red + 5 reps |
 
-Do not run full live+judge on every PR.
-
-GitHub: [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — PR path only. Live/nightly are `workflow_dispatch` (need Ollama).
+A self-hosted runner with Ollama already on `localhost:11434` can run the local commands. Do not add that job until such a runner exists.
 
 ## Reports
 

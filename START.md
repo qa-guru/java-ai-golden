@@ -112,10 +112,10 @@ e2e id = история формы. HTTP 401 — в `login-401-api` и в `must_
 
 ## Eval pipeline (не на камеру)
 
-Полный прогон метрик / gate / baseline — [README.md](README.md). На CI без Ollama:
+Полный прогон метрик / gate / baseline — [README.md](README.md). GitHub Actions = только это (на `ubuntu-latest` нет Ollama; live туда не вешать):
 
 ```bash
 ./gradlew test evalDeterministic evalRegression
 ```
 
-`evalDeterministic` = 100% по **фикстурам**, не оценка живой 7b. Live 1-shot: `evalLive` / `evalLiveRegression`. Nightly (red + 5 попыток): `evalNightly` / `evalNightlyRegression` — другой протокол, другой baseline.
+`evalDeterministic` = 100% по **фикстурам**, не оценка живой 7b. Live 1-shot и nightly — **локально**, с Ollama: `evalLive` / `evalLiveRegression` и `evalNightly` / `evalNightlyRegression`.
