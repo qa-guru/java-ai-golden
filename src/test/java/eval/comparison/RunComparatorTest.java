@@ -260,6 +260,43 @@ class RunComparatorTest {
     }
 
     @Test
+    void timeoutIsNotAQualityRegression() {
+        EvalRun baseline = run("b", "generation-v1", List.of(passing("1"), passing("2")));
+        EvalRun candidate = run("c", "generation-v1", List.of(erroring("1"), passing("2")));
+        ComparisonResult result = RunComparator.compare(baseline, candidate, Thresholds.liveDelta());
+        assertTrue(result.valid());
+        assertEquals(0, result.regressions());
+        assertEquals(0, result.improvements());
+        assertEquals(CaseRegression.NEW_ERROR, find(result, "1"));
+        assertEquals(CaseRegression.UNCHANGED_PASS, find(result, "2"));
+        assertEquals(0, result.mcnemar().n01());
+        assertTrue(result.qualityGate().passed());
+        assertTrue(result.qualityGate().rules().stream().noneMatch(r -> r.name().contains("criticalNewFailure")));
+    }
+
+    @Test
+    void errorVersusErrorIsNotUnchangedFail() {
+        EvalRun a = run("a", "generation-v1", List.of(erroring("1"), passing("2")));
+        ComparisonResult result = RunComparator.compare(a, a);
+        assertTrue(result.valid());
+        assertEquals(0, result.regressions());
+        assertEquals(0, result.unchangedFail());
+        assertEquals(CaseRegression.UNCHANGED_ERROR, find(result, "1"));
+        assertEquals(CaseRegression.UNCHANGED_PASS, find(result, "2"));
+    }
+
+    @Test
+    void errorThenPassIsNotAQualityRecovery() {
+        EvalRun baseline = run("b", "generation-v1", List.of(erroring("1"), failing("2")));
+        EvalRun candidate = run("c", "generation-v1", List.of(passing("1"), failing("2")));
+        ComparisonResult result = RunComparator.compare(baseline, candidate);
+        assertTrue(result.valid());
+        assertEquals(0, result.improvements());
+        assertEquals(CaseRegression.INFRA_RESOLVED, find(result, "1"));
+        assertEquals(CaseRegression.UNCHANGED_FAIL, find(result, "2"));
+    }
+
+    @Test
     void caseFailWithPerfectAttemptRateIsStillARegression() {
         CaseResult retrievalOverlayFail = new CaseResult(
                 "GEN-001",
@@ -443,6 +480,22 @@ class RunComparatorTest {
 
     private static CaseResult failing(String id) {
         return caseResult(id, EvalStatus.FAIL, Set.of(CaseKind.GENERATION), ContractResult.fail(List.of("x")), null);
+    }
+
+    private static CaseResult erroring(String id) {
+        AttemptResult attempt = AttemptResult.error(1, "TIMEOUT", "Ollama timeout", 5);
+        return new CaseResult(
+                id,
+                EvalStatus.ERROR,
+                Set.of(CaseKind.GENERATION),
+                List.of(attempt),
+                null,
+                null,
+                eval.domain.RetrievalResult.notApplicable(),
+                Rate.empty(),
+                List.of("TIMEOUT: Ollama timeout"),
+                5,
+                Map.of());
     }
 
     private static CaseResult hallucinationFail(String id) {

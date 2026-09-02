@@ -217,6 +217,8 @@ public final class MarkdownReporter {
         md.append('\n');
         md.append("### New failures\n\n");
         appendCaseList(md, comparison, CaseRegression.NEW_FAILURE);
+        md.append("### Infrastructure errors (not quality regressions)\n\n");
+        appendCaseList(md, comparison, CaseRegression.NEW_ERROR);
         md.append("### Recovered\n\n");
         appendCaseList(md, comparison, CaseRegression.RECOVERED);
         md.append("### Unchanged pass\n\n");

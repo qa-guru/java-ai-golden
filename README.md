@@ -10,7 +10,7 @@ This repo is a **file-based evaluation system**:
 Dataset → Run → Results → Metrics → Baseline → Comparison → Regression → Gate
 ```
 
-Semantics SSOT: [docs/evaluation-methodology.md](docs/evaluation-methodology.md). Mill walkthrough (camera, ~3 min): [START.md](START.md).
+Semantics SSOT: [docs/EVALUATION.md](docs/EVALUATION.md) ([evaluation-methodology.md](docs/evaluation-methodology.md)). Mill walkthrough (camera, ~3 min): [START.md](START.md).
 
 It is not a matrix cell, not a takeaway `main`, and not an MCP server.
 
@@ -172,7 +172,7 @@ Same dataset, same graders, same attempt count. Table: Overall / Contract / RAG 
 ./gradlew evalRegression
 ```
 
-Requires matching `datasetVersion` (and `datasetHash` when both runs have one). Per-case: `NEW_FAILURE` | `RECOVERED` | `UNCHANGED_PASS` | `UNCHANGED_FAIL`. Metric deltas: `IMPROVED` | `REGRESSED` | `UNCHANGED`.
+Requires matching `datasetVersion` (and `datasetHash` when both runs have one). Per-case: `NEW_FAILURE` | `RECOVERED` | `UNCHANGED_PASS` | `UNCHANGED_FAIL` | `NEW_ERROR` (infra, not quality). Metric deltas: `IMPROVED` | `REGRESSED` | `UNCHANGED`.
 
 Paired summary: unchanged pass/fail, regressions, improvements. McNemar is informational, never the sole gate.
 

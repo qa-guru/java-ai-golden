@@ -87,6 +87,8 @@ Evaluation infrastructure could not complete the case correctly.
 
 Kinds include: `MODEL_UNAVAILABLE`, `HTTP_ERROR`, `EMPTY_RESPONSE`, `PROVIDER_ERROR`, `TIMEOUT`, `PARSER_ERROR`, `JUDGE_ERROR`.
 
+Judge **HTTP** timeout/unavailable is attempt `ERROR` (`JUDGE_ERROR`). Malformed judge JSON, missing fields, out-of-range score, or VERDICT/JSON contradiction is **not** a quality FAIL: the attempt stays on the hard contract, and the judge result is `PENDING` with `schemaValid=false` (excluded from `judgeAcceptRate`).
+
 `ERROR != FAIL`. Errors are excluded from pass rates. A run with only errors exits `3 INFRASTRUCTURE_FAILURE` instead of advertising 0% model quality.
 
 `QUALITY_FAILURE` is `FAIL`, not `ERROR`.
@@ -120,8 +122,15 @@ Paired on the same case ids:
 | PASS → PASS | `UNCHANGED_PASS` |
 | FAIL → FAIL | `UNCHANGED_FAIL` |
 | SKIPPED → SKIPPED | `UNCHANGED_SKIPPED` (not a fail) |
+| PASS/FAIL/SKIPPED → ERROR | `NEW_ERROR` (infrastructure, **not** a quality regression) |
+| ERROR → ERROR | `UNCHANGED_ERROR` |
+| ERROR → PASS/FAIL/SKIPPED | `INFRA_RESOLVED` (not a quality recovery) |
+
+McNemar uses only `NEW_FAILURE` / `RECOVERED` pairs. An Ollama timeout is `NEW_ERROR`; it must not look like a model regression. The process still exits `3 INFRASTRUCTURE_FAILURE` if any attempt is `ERROR`.
 
 Overall improvement must not hide a `NEW_FAILURE`. A **CRITICAL** new failure fails the gate even if overall delta is within budget.
+
+**Confirmed regression** (CI / `--gate`) is the quality-gate FAIL: overall/contract/… delta worse than `allowedRegression`, or a CRITICAL `NEW_FAILURE`. Gate PASS with overlapping Wilson CIs is **no confirmed regression** under this policy — the interval is reported so a 2pp move on small n is not mistaken for a significance test.
 
 ## Metrics
 

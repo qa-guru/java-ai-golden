@@ -95,6 +95,8 @@ public final class ConsoleReporter {
                 }
                 out.append("New failures:\n");
                 printCases(out, comparison, CaseRegression.NEW_FAILURE);
+                out.append("Infra errors:\n");
+                printCases(out, comparison, CaseRegression.NEW_ERROR);
                 out.append("Recovered:\n");
                 printCases(out, comparison, CaseRegression.RECOVERED);
             }

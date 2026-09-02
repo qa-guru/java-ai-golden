@@ -235,35 +235,51 @@ public final class RunComparator {
                 out.add(new CaseComparison(id, CaseRegression.REMOVED, success(left), Rate.empty()));
                 continue;
             }
-            boolean baseQuality = isQuality(left);
-            boolean candQuality = isQuality(right);
-            CaseRegression reg;
-            if (!baseQuality && !candQuality) {
-                reg = left.status() == EvalStatus.SKIPPED && right.status() == EvalStatus.SKIPPED
-                        ? CaseRegression.UNCHANGED_SKIPPED
-                        : CaseRegression.UNCHANGED_FAIL;
-            } else if (baseQuality && candQuality) {
-                boolean basePass = isPass(left);
-                boolean candPass = isPass(right);
-                if (basePass && candPass) {
-                    reg = CaseRegression.UNCHANGED_PASS;
-                } else if (!basePass && !candPass) {
-                    reg = CaseRegression.UNCHANGED_FAIL;
-                } else if (basePass) {
-                    reg = CaseRegression.NEW_FAILURE;
-                } else {
-                    reg = CaseRegression.RECOVERED;
-                }
-            } else if (baseQuality && isPass(left) && !candQuality) {
-                reg = CaseRegression.NEW_FAILURE;
-            } else if (!baseQuality && candQuality && isPass(right)) {
-                reg = CaseRegression.RECOVERED;
-            } else {
-                reg = CaseRegression.UNCHANGED_FAIL;
-            }
-            out.add(new CaseComparison(id, reg, success(left), success(right)));
+            out.add(new CaseComparison(id, classify(left, right), success(left), success(right)));
         }
         return List.copyOf(out);
+    }
+
+    /**
+     * Infrastructure ERROR is not a quality FAIL. McNemar / NEW_FAILURE only use PASS↔FAIL pairs.
+     */
+    static CaseRegression classify(CaseResult left, CaseResult right) {
+        EvalStatus ls = left.status();
+        EvalStatus rs = right.status();
+        if (ls == EvalStatus.ERROR || rs == EvalStatus.ERROR) {
+            if (ls == EvalStatus.ERROR && rs == EvalStatus.ERROR) {
+                return CaseRegression.UNCHANGED_ERROR;
+            }
+            if (rs == EvalStatus.ERROR) {
+                return CaseRegression.NEW_ERROR;
+            }
+            return CaseRegression.INFRA_RESOLVED;
+        }
+        boolean baseQuality = isQuality(left);
+        boolean candQuality = isQuality(right);
+        if (!baseQuality && !candQuality) {
+            return ls == EvalStatus.SKIPPED && rs == EvalStatus.SKIPPED
+                    ? CaseRegression.UNCHANGED_SKIPPED
+                    : CaseRegression.UNCHANGED_FAIL;
+        }
+        if (baseQuality && candQuality) {
+            boolean basePass = isPass(left);
+            boolean candPass = isPass(right);
+            if (basePass && candPass) {
+                return CaseRegression.UNCHANGED_PASS;
+            }
+            if (!basePass && !candPass) {
+                return CaseRegression.UNCHANGED_FAIL;
+            }
+            return basePass ? CaseRegression.NEW_FAILURE : CaseRegression.RECOVERED;
+        }
+        if (baseQuality && isPass(left)) {
+            return CaseRegression.NEW_FAILURE;
+        }
+        if (!baseQuality && candQuality && isPass(right)) {
+            return CaseRegression.RECOVERED;
+        }
+        return CaseRegression.UNCHANGED_FAIL;
     }
 
     static boolean isQuality(CaseResult cse) {
