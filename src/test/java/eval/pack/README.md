@@ -1,6 +1,6 @@
 # Фаза 2 — pack как продукт
 
-SUT — не логин и не сгенерированный Java, а **диета агента**: `src/test/resources/pack/`
+SUT — не логин и не сгенерированный Java, а **диета агента**: `src/main/resources/pack/`
 (rules, skill, RAG, ADR, контекст PO) и **лексический ретривер**.
 
 CI без LLM. Live generation берёт чанки из `LexicalRetriever.retrieve(prompt)`, не из jsonl.

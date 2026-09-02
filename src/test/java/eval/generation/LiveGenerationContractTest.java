@@ -50,7 +50,7 @@ class LiveGenerationContractTest {
                         + " model=" + config.model() + " =====\n" + raw
                         + "\n===== END " + row.id() + " =====");
         if (config.writeFixtures()) {
-            var path = GoldenReader.evalDir().resolve("fixtures").resolve(row.id() + ".out.md");
+            var path = GoldenReader.writableEvalDir().resolve("fixtures").resolve(row.id() + ".out.md");
             Files.writeString(path, raw, StandardCharsets.UTF_8);
         }
         ContractAssertions.assertMatches(row, raw);

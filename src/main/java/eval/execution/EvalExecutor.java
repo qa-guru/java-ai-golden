@@ -246,7 +246,7 @@ public final class EvalExecutor {
         }
         if (config.writeFixtures() && !attempts.isEmpty() && attempts.getFirst().rawOutput() != null) {
             try {
-                Path path = GoldenReader.evalDir().resolve("fixtures").resolve(row.id() + ".out.md");
+                Path path = GoldenReader.writableEvalDir().resolve("fixtures").resolve(row.id() + ".out.md");
                 Files.writeString(path, attempts.getFirst().rawOutput(), StandardCharsets.UTF_8);
             } catch (Exception ignored) {
                 // mill flag is best-effort; eval status already recorded

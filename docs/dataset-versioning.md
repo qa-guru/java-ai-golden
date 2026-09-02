@@ -1,14 +1,14 @@
 # Dataset versioning
 
-Eval results **must** carry `datasetVersion`, `datasetHash`, and `packDatasetVersion`. New runs also carry `packHash` (content of `src/test/resources/pack/`). You cannot conclude model B is better than A if A ran on `generation-v1` and B on `generation-v3`, or if the JSONL changed without a version bump (`datasetHash` mismatch → `COMPARISON INVALID`). If **both** runs have `packHash` and they differ, that is also `COMPARISON INVALID`. A committed baseline without `packHash` still compares.
+Eval results **must** carry `datasetVersion`, `datasetHash`, and `packDatasetVersion`. New runs also carry `packHash` (content of `src/main/resources/pack/`). You cannot conclude model B is better than A if A ran on `generation-v1` and B on `generation-v3`, or if the JSONL changed without a version bump (`datasetHash` mismatch → `COMPARISON INVALID`). If **both** runs have `packHash` and they differ, that is also `COMPARISON INVALID`. A committed baseline without `packHash` still compares.
 
 ## Current
 
 | Dataset | Version file | Id |
 |---|---|---|
-| Generation goldens (development) | `src/test/java/eval/generation/dataset.json` | `generation-v1` |
-| Holdout (final only) | `src/test/java/eval/generation/holdout/dataset.json` | `holdout-v1` |
-| Pack diet | `src/test/resources/pack/dataset.json` | `pack-v1` |
+| Generation goldens (development) | `src/main/resources/eval/generation/dataset.json` | `generation-v1` |
+| Holdout (final only) | `src/main/resources/eval/generation/holdout/dataset.json` | `holdout-v1` |
+| Pack diet | `src/main/resources/pack/dataset.json` | `pack-v1` |
 
 Pack-only wording that does not change retrieve sets or contracts: bump **`pack-v1` only**. Anything that changes `expect.rag`, `must_not`, refuse behaviour, or case ids: bump **`generation-v1`** (and usually pack if the diet moved).
 

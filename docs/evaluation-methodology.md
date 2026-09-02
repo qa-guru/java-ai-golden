@@ -39,7 +39,7 @@ Current **development** set (`generation-v1`, 8 cases):
 
 A case may have several **kinds** derived from the row (`generation`, `retrieval`, `negative`, `hallucination`, `refusal`, `layer`, `rag`). Slice metrics use those kinds; the aggregator does not hardcode a product category list.
 
-**Holdout** (`holdout-v1`, 8 cases, not in development): `src/test/java/eval/generation/holdout/`. **Do not use holdout to tune prompt, grader, or judge.** Default pipeline loads development only. Final check: `./gradlew evalHoldout`.
+**Holdout** (`holdout-v1`, 8 cases, not in development): `src/main/resources/eval/generation/holdout/`. **Do not use holdout to tune prompt, grader, or judge.** Default pipeline loads development only. Final check: `./gradlew evalHoldout`.
 
 | id | Role |
 |---|---|
@@ -236,7 +236,7 @@ Contract outranks the judge. Soft scores cannot wash out a forbidden citation.
 
 ## Judge calibration
 
-`src/test/java/eval/generation/calibration/judge-calibration.jsonl` is a **separate validation layer**. It does not affect production eval or the quality gate.
+`src/main/resources/eval/generation/calibration/judge-calibration.jsonl` is a **separate validation layer**. It does not affect production eval or the quality gate.
 
 It reports accuracy, precision, recall, F1, confusion matrix (ACCEPT = positive class). n≈20 is too small for a published judge-accuracy claim; the caveat is part of the report.
 

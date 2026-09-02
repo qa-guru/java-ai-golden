@@ -79,10 +79,10 @@ e2e id = история формы. HTTP 401 — в `login-401-api` и в `must_
 
 | Путь | Зачем |
 |------|--------|
-| `src/test/java/eval/generation/golden-generation.jsonl` | контракт рядов |
-| `src/test/java/eval/generation/fixtures/` | CI без LLM |
-| `src/test/java/eval/generation/rubric-judge.md` | судья по MODE |
-| `src/test/resources/pack/` | rules, skill, RAG, ADR 009 |
+| `src/main/resources/eval/generation/golden-generation.jsonl` | контракт рядов |
+| `src/main/resources/eval/generation/fixtures/` | CI без LLM |
+| `src/main/resources/eval/generation/rubric-judge.md` | судья по MODE |
+| `src/main/resources/pack/` | rules, skill, RAG, ADR 009 |
 | `src/test/java/eval/pack/` | pack и ретривер как SUT |
 | `build/live-out/<id>.out.md` | сырой ответ генератора |
 | `build/live-out/<id>.judge.md` | вердикт судьи |
@@ -94,7 +94,7 @@ e2e id = история формы. HTTP 401 — в `login-401-api` и в `must_
 
 ## Pack, если осталась минута
 
-Офлайн, без Ollama. Подробности: [eval/pack/README.md](src/test/java/eval/pack/README.md). Версия диеты: `pack-v1` (`src/test/resources/pack/dataset.json`).
+Офлайн, без Ollama. Подробности: [eval/pack/README.md](src/test/java/eval/pack/README.md). Версия диеты: `pack-v1` (`src/main/resources/pack/dataset.json`).
 
 - в jsonl у `login-401-api` добавить rag-id `test-negative` — `RetrieverTest`;
 - в `po-fluent` `index:` дописать `неуспешный` — poison ретривера.

@@ -79,20 +79,26 @@ Layers (packages), not a 500-class framework:
 | `eval.provider` | `ModelRunner` factory: `ollama` (default) or `openai` (OpenAI-compatible HTTP). Cursor agent is a different SUT — not wired. |
 | `eval.cli` | `EvalMain`, exit codes |
 
+| Tree | Role |
+|---|---|
+| `src/main/java` | evaluation application (`EvalMain` on main `runtimeClasspath`) |
+| `src/main/resources` | generation dataset, fixtures, holdout, pack diet, judge rubric |
+| `src/test/java` | tests of the evaluation application |
+
 Existing mill JUnit tests (`GenerationContractTest`, `LiveGenerationContractTest`, pack tests) stay. Live mill uses the same `ModelRunners` factory as the pipeline. The pipeline **reuses** mill graders; it does not replace them.
 
 ## Golden dataset
 
-- File: `src/test/java/eval/generation/golden-generation.jsonl`
-- Version: `src/test/java/eval/generation/dataset.json` → currently **`generation-v1`**
-- Pack version: `src/test/resources/pack/dataset.json` → **`pack-v1`** (EvalRun.packDatasetVersion)
+- File: `src/main/resources/eval/generation/golden-generation.jsonl`
+- Version: `src/main/resources/eval/generation/dataset.json` → currently **`generation-v1`**
+- Pack version: `src/main/resources/pack/dataset.json` → **`pack-v1`** (EvalRun.packDatasetVersion)
 - **Stable case id** = JSONL `id` (e.g. `login-wrong-password-e2e`). Not the line index. Prefixes like `GEN-001` are a naming option for *new* datasets; this mill keeps story ids because fixtures, START, and lab 36 already use them.
-- **Holdout** (not for tuning): `src/test/java/eval/generation/holdout/` → `holdout-v1`. `./gradlew evalHoldout`
-- Fixtures: `src/test/java/eval/generation/fixtures/<id>.out.md` — CI without LLM
+- **Holdout** (not for tuning): `src/main/resources/eval/generation/holdout/` → `holdout-v1`. `./gradlew evalHoldout`
+- Fixtures: `src/main/resources/eval/generation/fixtures/<id>.out.md` — CI without LLM
 - Rules for changing the dataset: [docs/dataset-versioning.md](docs/dataset-versioning.md)
 - How to add a case: [docs/adding-a-case.md](docs/adding-a-case.md)
 
-Pack diet (SUT for retriever/isolation/skill): `src/test/resources/pack/`. Changing retrieve sets bumps **`pack-v1`**; changing `expect.rag` / contracts also bumps **`generation-v1`**. Details: `src/test/java/eval/pack/README.md`.
+Pack diet (SUT for retriever/isolation/skill): `src/main/resources/pack/`. Changing retrieve sets bumps **`pack-v1`**; changing `expect.rag` / contracts also bumps **`generation-v1`**. Details: `src/test/java/eval/pack/README.md`.
 
 ## Contract grading
 
@@ -266,7 +272,7 @@ Example: [docs/examples/eval-report.md](docs/examples/eval-report.md).
 
 Latency: min / avg / median / p95 / max per run (attempt samples). Tokens: `prompt_eval_count` / `eval_count` from Ollama when present. **Cost is null** unless a provider actually returns a price. Core does not invent USD.
 
-Judge calibration (does not affect production scores or the quality gate): canned `./gradlew evalJudgeCalibration`; live `./gradlew evalJudgeCalibrationLive`. Corpus: `src/test/java/eval/generation/calibration/judge-calibration.jsonl` (REJECT rows carry a bad `candidate`). Judge consistency: `--judge-repetitions=N` on live.
+Judge calibration (does not affect production scores or the quality gate): canned `./gradlew evalJudgeCalibration`; live `./gradlew evalJudgeCalibrationLive`. Corpus: `src/main/resources/eval/generation/calibration/judge-calibration.jsonl` (REJECT rows carry a bad `candidate`). Judge consistency: `--judge-repetitions=N` on live.
 
 ## How to add a grader
 

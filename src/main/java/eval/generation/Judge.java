@@ -6,9 +6,9 @@ import eval.domain.JudgeDecision;
 import eval.domain.JudgeResult;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -203,10 +203,12 @@ public final class Judge {
     }
 
     private static String system() {
-        try {
-            String rubric = Files.readString(
-                    GoldenReader.evalDir().resolve("rubric-judge.md"),
-                    StandardCharsets.UTF_8);
+        try (InputStream in = Judge.class.getResourceAsStream(
+                GoldenReader.CLASSPATH_DIR + "/rubric-judge.md")) {
+            if (in == null) {
+                throw new IllegalStateException("Missing classpath resource /eval/generation/rubric-judge.md");
+            }
+            String rubric = new String(in.readAllBytes(), StandardCharsets.UTF_8);
             return rubric
                     + """
 

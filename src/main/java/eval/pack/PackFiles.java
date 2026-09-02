@@ -2,6 +2,8 @@ package eval.pack;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -26,7 +28,15 @@ public final class PackFiles {
     }
 
     static Path root() {
-        Path cwd = Path.of("src/test/resources/pack").toAbsolutePath().normalize();
+        URL url = PackFiles.class.getResource("/pack/dataset.json");
+        if (url != null && "file".equalsIgnoreCase(url.getProtocol())) {
+            try {
+                return Path.of(url.toURI()).getParent();
+            } catch (URISyntaxException ignored) {
+                // fall through to source tree
+            }
+        }
+        Path cwd = Path.of("src/main/resources/pack").toAbsolutePath().normalize();
         if (Files.isDirectory(cwd.resolve("rag"))) {
             return cwd;
         }

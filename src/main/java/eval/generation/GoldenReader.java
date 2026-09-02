@@ -5,8 +5,10 @@ import eval.dataset.DatasetIdentity;
 import eval.dataset.DatasetManifest;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -19,6 +21,8 @@ public final class GoldenReader {
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final String GOLDEN_FILE = "golden-generation.jsonl";
     private static final String MANIFEST_FILE = "dataset.json";
+    static final String CLASSPATH_DIR = "/eval/generation";
+    private static final String SOURCE_DIR = "src/main/resources/eval/generation";
 
     private GoldenReader() {
     }
@@ -28,11 +32,11 @@ public final class GoldenReader {
     }
 
     public static List<GoldenCase> loadAll() {
-        return loadFile(evalDir().resolve(GOLDEN_FILE));
+        return parseLines(readResourceLines(CLASSPATH_DIR + "/" + GOLDEN_FILE));
     }
 
     public static List<GoldenCase> loadHoldout() {
-        return loadFile(evalDir().resolve("holdout").resolve("golden-holdout.jsonl"));
+        return parseLines(readResourceLines(CLASSPATH_DIR + "/holdout/golden-holdout.jsonl"));
     }
 
     public static List<GoldenCase> loadSplit(String split) {
@@ -66,30 +70,12 @@ public final class GoldenReader {
         return List.copyOf(rows);
     }
 
-    static List<GoldenCase> loadFile(Path path) {
-        try {
-            return parseLines(Files.readAllLines(path, StandardCharsets.UTF_8));
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
     public static DatasetManifest manifest() {
-        Path path = evalDir().resolve(MANIFEST_FILE);
-        try {
-            return MAPPER.readValue(Files.readString(path, StandardCharsets.UTF_8), DatasetManifest.class);
-        } catch (IOException e) {
-            throw new UncheckedIOException("Missing or invalid " + MANIFEST_FILE + ": " + path, e);
-        }
+        return readManifest(CLASSPATH_DIR + "/" + MANIFEST_FILE);
     }
 
     public static DatasetManifest holdoutManifest() {
-        Path path = evalDir().resolve("holdout").resolve(MANIFEST_FILE);
-        try {
-            return MAPPER.readValue(Files.readString(path, StandardCharsets.UTF_8), DatasetManifest.class);
-        } catch (IOException e) {
-            throw new UncheckedIOException("Missing or invalid holdout " + MANIFEST_FILE + ": " + path, e);
-        }
+        return readManifest(CLASSPATH_DIR + "/holdout/" + MANIFEST_FILE);
     }
 
     public static String datasetVersion() {
@@ -111,50 +97,85 @@ public final class GoldenReader {
     }
 
     public static String fixture(String id) {
-        Path primary = evalDir().resolve("fixtures").resolve(id + ".out.md");
-        Path holdout = evalDir().resolve("holdout").resolve("fixtures").resolve(id + ".out.md");
-        Path path = Files.isRegularFile(primary) ? primary : holdout;
-        try {
-            return Files.readString(path, StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            throw new UncheckedIOException("No fixture: " + primary + " or " + holdout, e);
+        String primary = CLASSPATH_DIR + "/fixtures/" + id + ".out.md";
+        String holdout = CLASSPATH_DIR + "/holdout/fixtures/" + id + ".out.md";
+        if (GoldenReader.class.getResource(primary) != null) {
+            return readResource(primary);
         }
+        if (GoldenReader.class.getResource(holdout) != null) {
+            return readResource(holdout);
+        }
+        throw new IllegalStateException("No fixture: " + primary + " or " + holdout);
     }
 
+    /**
+     * Classpath directory of the generation dataset (Gradle exploded resources).
+     */
     public static Path evalDir() {
-        Path cwdCandidate = Path.of("src/test/java/eval/generation").toAbsolutePath().normalize();
-        if (Files.isRegularFile(cwdCandidate.resolve(GOLDEN_FILE))) {
-            return cwdCandidate;
+        Path fromClasspath = dirFromResource(CLASSPATH_DIR + "/" + GOLDEN_FILE);
+        if (fromClasspath != null) {
+            return fromClasspath;
         }
-        Path fromClasses = evalDirFromClasses();
-        if (fromClasses != null) {
-            return fromClasses;
+        Path src = sourceEvalDirOrNull();
+        if (src != null) {
+            return src;
         }
         throw new IllegalStateException(
                 "Missing " + GOLDEN_FILE + " (cwd=" + Path.of("").toAbsolutePath() + ")");
+    }
+
+    /**
+     * Source-tree directory for {@code -DwriteFixtures=true}. Falls back to {@link #evalDir()}.
+     */
+    public static Path writableEvalDir() {
+        Path src = sourceEvalDirOrNull();
+        return src != null ? src : evalDir();
     }
 
     public static void requireUniqueIds(List<GoldenCase> rows) {
         DatasetIdentity.validate(rows);
     }
 
-    private static Path evalDirFromClasses() {
-        var codeSource = GoldenReader.class.getProtectionDomain().getCodeSource();
-        if (codeSource == null) {
+    private static Path sourceEvalDirOrNull() {
+        Path src = Path.of(SOURCE_DIR).toAbsolutePath().normalize();
+        if (Files.isRegularFile(src.resolve(GOLDEN_FILE))) {
+            return src;
+        }
+        return null;
+    }
+
+    private static DatasetManifest readManifest(String resource) {
+        try {
+            return MAPPER.readValue(readResource(resource), DatasetManifest.class);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Missing or invalid " + resource, e);
+        }
+    }
+
+    private static List<String> readResourceLines(String resource) {
+        return readResource(resource).lines().toList();
+    }
+
+    private static String readResource(String resource) {
+        try (InputStream in = GoldenReader.class.getResourceAsStream(resource)) {
+            if (in == null) {
+                throw new IllegalStateException("Missing classpath resource " + resource);
+            }
+            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private static Path dirFromResource(String resource) {
+        URL url = GoldenReader.class.getResource(resource);
+        if (url == null || !"file".equalsIgnoreCase(url.getProtocol())) {
             return null;
         }
         try {
-            Path cursor = Path.of(codeSource.getLocation().toURI());
-            for (int i = 0; i < 8 && cursor != null; i++) {
-                Path candidate = cursor.resolve("src/test/java/eval/generation").resolve(GOLDEN_FILE);
-                if (Files.isRegularFile(candidate)) {
-                    return candidate.getParent();
-                }
-                cursor = cursor.getParent();
-            }
+            return Path.of(url.toURI()).getParent();
         } catch (URISyntaxException e) {
             return null;
         }
-        return null;
     }
 }
