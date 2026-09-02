@@ -85,7 +85,7 @@ Also called a quality failure. Taxonomy: `category`, `severity`, `grader`, `reas
 
 Evaluation infrastructure could not complete the case correctly.
 
-Kinds include: `MODEL_UNAVAILABLE`, `HTTP_ERROR`, `EMPTY_RESPONSE`, `PROVIDER_ERROR`, `TIMEOUT`, `PARSER_ERROR`, `JUDGE_ERROR`.
+Kinds include: `MODEL_UNAVAILABLE`, `HTTP_ERROR`, `EMPTY_RESPONSE`, `PROVIDER_ERROR`, `TIMEOUT`, `PARSER_ERROR`, `JUDGE_ERROR`, `RATE_LIMIT` (HTTP 429).
 
 Judge **HTTP** timeout/unavailable is attempt `ERROR` (`JUDGE_ERROR`). Malformed judge JSON, missing fields, out-of-range score, or VERDICT/JSON contradiction is **not** a quality FAIL: the attempt stays on the hard contract, and the judge result is `PENDING` with `schemaValid=false` (excluded from `judgeAcceptRate`).
 
@@ -130,7 +130,15 @@ McNemar uses only `NEW_FAILURE` / `RECOVERED` pairs. An Ollama timeout is `NEW_E
 
 Overall improvement must not hide a `NEW_FAILURE`. A **CRITICAL** new failure fails the gate even if overall delta is within budget.
 
-**Confirmed regression** (CI / `--gate`) is the quality-gate FAIL: overall/contract/… delta worse than `allowedRegression`, or a CRITICAL `NEW_FAILURE`. Gate PASS with overlapping Wilson CIs is **no confirmed regression** under this policy — the interval is reported so a 2pp move on small n is not mistaken for a significance test.
+**Confirmed regression** vs **no confirmed regression** (live delta / `--gate`):
+
+1. If the point estimate is within `allowedRegression` of the baseline → **NO CONFIRMED REGRESSION**.
+2. If the point estimate is worse than allowed **and** the two 95% Wilson CIs **do not overlap** → **CONFIRMED REGRESSION** (gate FAIL).
+3. If the point estimate is worse than allowed **but the CIs overlap** → **NO CONFIRMED REGRESSION** (gate PASS for that delta rule). Small n (1 fail in 40) is noise, not a confirmed drop.
+4. A **CRITICAL** `NEW_FAILURE` still fails the gate even when CIs overlap.
+5. Absolute thresholds (fixture 100%) are unchanged: one fixture fail is still a gate FAIL.
+
+`comparison.decision` is `CONFIRMED_REGRESSION` | `NO_CONFIRMED_REGRESSION` | `COMPARISON_INVALID`. McNemar stays informational.
 
 ## Metrics
 
@@ -171,16 +179,17 @@ Every defined rate carries a **Wilson 95% CI**. n=10 at 100% is still a wide int
 
 - `datasetVersion` (manifest)
 - `datasetHash` — SHA-256 of canonical JSON of cases **sorted by id**
+- `packHash` — SHA-256 of pack files **sorted by relative path** (additive: a legacy snapshot without `packHash` still compares)
 
-Same bytes after reorder → same hash. Edit a prompt → different hash. Duplicate or missing `id` → hard error.
+Same bytes after reorder → same hash. Edit a prompt → different `datasetHash`. Edit a RAG chunk without bumping `pack-v1` → different `packHash` (and `COMPARISON INVALID` when **both** runs have a hash). Duplicate or missing `id` → hard error.
 
-Do not compare runs with different `datasetVersion` or different `datasetHash`. Missing hash on one side only is also `COMPARISON INVALID` (legacy snapshots must be recaptured). That is not a fake percentage.
+Do not compare runs with different `datasetVersion` or different `datasetHash`. Missing hash on one side only is also `COMPARISON INVALID` for **dataset** hash (legacy snapshots must be recaptured). Missing `packHash` on one side only is **not** invalid.
 
 ## Configuration fingerprint
 
-`configFingerprint` hashes: execution mode, model, judge (or `off`), provider, repetitions, includeRed, datasetVersion, datasetHash, packVersion, experimentId, gitCommit.
+`configFingerprint` hashes: execution mode, model, judge (or `off`), provider, repetitions, includeRed, datasetVersion, datasetHash, packVersion, packHash, experimentId, gitCommit.
 
-It does **not** hash runId, timestamp, duration, outputDir, or artifact mode.
+It does **not** hash runId, timestamp, duration, outputDir, artifact mode, or Java patch level. `RunConfiguration.javaVersion` is `java.specification.version` (e.g. `21`) for “what produced this”, not a comparison key.
 
 ## Fair comparison
 
@@ -189,9 +198,10 @@ Required to be the same:
 1. `datasetVersion`
 2. `datasetHash` (if both recorded)
 3. pack version (if both recorded)
-4. execution mode (fixture vs live)
-5. `repetitions` and `includeRed`
-6. judge enabled / judge model (when either side judges)
+4. `packHash` (if both recorded)
+5. execution mode (fixture vs live)
+6. `repetitions` and `includeRed`
+7. judge enabled / judge model (when either side judges)
 
 Mismatch → `COMPARISON INVALID`.
 
@@ -202,9 +212,11 @@ Different **models, prompts, experiments** are allowed — that is the experimen
 Two rule families, both optional per metric:
 
 1. **Absolute** — pass rate ≥ min; hallucination ≤ max
-2. **Delta** — candidate ≥ baseline − `allowedRegression` (hallucination: ≤ baseline + δ)
+2. **Delta** — first the point estimate vs `allowedRegression`, then confirmation: 95% Wilson CIs must **not overlap** to FAIL. Overlap → `NO CONFIRMED REGRESSION` (delta rule passes).
 
-Absolute pass does **not** waive a delta fail: baseline 95%, candidate 92%, absolute 90%, max regression 2pp → **FAIL**.
+Absolute pass does **not** waive a **confirmed** delta fail: baseline 20/20, candidate 5/20, absolute min 20%, max regression 2pp → absolute PASS, delta **CONFIRMED REGRESSION**.
+
+A 2–3pp drop on n=20 with overlapping CIs is **not** a confirmed regression.
 
 CRITICAL new failures fail the gate.
 

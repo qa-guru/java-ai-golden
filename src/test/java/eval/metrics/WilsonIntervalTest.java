@@ -38,6 +38,13 @@ class WilsonIntervalTest {
     }
 
     @Test
+    void smallNIntervalsOverlapAndLargeDropDoesNot() {
+        assertTrue(WilsonInterval.overlap(Rate.of(19, 20).ci95(), Rate.of(18, 20).ci95()));
+        assertTrue(!WilsonInterval.confirmedChange(Rate.of(19, 20), Rate.of(18, 20)));
+        assertTrue(WilsonInterval.confirmedChange(Rate.of(20, 20), Rate.of(5, 20)));
+    }
+
+    @Test
     void zeroPercentUpperBoundAboveZero() {
         ConfidenceInterval ci = WilsonInterval.of(0, 10);
         assertEquals(0.0, ci.lower(), 1e-12);

@@ -22,12 +22,20 @@ public record ComparisonResult(
         int unchangedFail,
         int regressions,
         int improvements,
-        McNemar mcnemar
+        McNemar mcnemar,
+        String decision
 ) {
     public ComparisonResult {
         configurationDifferences = configurationDifferences == null ? List.of() : List.copyOf(configurationDifferences);
         metrics = metrics == null ? List.of() : List.copyOf(metrics);
         cases = cases == null ? List.of() : List.copyOf(cases);
+        if (decision == null || decision.isBlank()) {
+            decision = !valid
+                    ? "COMPARISON_INVALID"
+                    : (qualityGate != null && !qualityGate.passed()
+                            ? "CONFIRMED_REGRESSION"
+                            : "NO_CONFIRMED_REGRESSION");
+        }
     }
 
     public ComparisonResult(
@@ -58,13 +66,14 @@ public record ComparisonResult(
                 count(cases, CaseRegression.UNCHANGED_FAIL),
                 count(cases, CaseRegression.NEW_FAILURE),
                 count(cases, CaseRegression.RECOVERED),
+                null,
                 null);
     }
 
     public static ComparisonResult invalid(String reason) {
         return new ComparisonResult(
                 false, reason, null, null, null, null, null, List.of(), List.of(), List.of(), null,
-                0, 0, 0, 0, null);
+                0, 0, 0, 0, null, "COMPARISON_INVALID");
     }
 
     public List<CaseComparison> newFailures() {

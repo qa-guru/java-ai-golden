@@ -131,6 +131,7 @@ public final class ArtifactWriter {
                 run.datasetVersion(),
                 run.packDatasetVersion(),
                 run.datasetHash(),
+                run.packHash(),
                 run.gitCommit(),
                 run.experimentId(),
                 run.configFingerprint(),

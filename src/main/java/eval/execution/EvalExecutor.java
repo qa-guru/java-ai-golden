@@ -106,15 +106,18 @@ public final class EvalExecutor {
                 config.outputDir().toString(),
                 config.provider(),
                 config.experimentId(),
-                config.datasetSplit());
+                config.datasetSplit(),
+                RunConfiguration.currentJavaVersion());
         String gitCommit = GitMetadata.shortCommit();
+        String packHash = config.packHash();
         String fingerprint = ConfigFingerprint.of(
                 configuration,
                 config.datasetVersion(),
                 datasetHash,
                 config.packDatasetVersion(),
                 config.experimentId(),
-                gitCommit);
+                gitCommit,
+                packHash);
         long durationMs = Math.max(1L, (System.nanoTime() - started) / 1_000_000L);
         EvalRun draft = new EvalRun(
                 runId,
@@ -124,6 +127,7 @@ public final class EvalExecutor {
                 config.datasetVersion(),
                 config.packDatasetVersion(),
                 datasetHash,
+                packHash,
                 gitCommit,
                 config.experimentId(),
                 fingerprint,

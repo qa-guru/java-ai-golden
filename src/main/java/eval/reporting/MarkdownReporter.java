@@ -35,6 +35,9 @@ public final class MarkdownReporter {
         if (run.datasetHash() != null) {
             md.append("- Dataset hash: `").append(run.datasetHash()).append("`\n");
         }
+        if (run.packHash() != null) {
+            md.append("- Pack hash: `").append(run.packHash()).append("`\n");
+        }
         if (run.experimentId() != null) {
             md.append("- Experiment: `").append(run.experimentId()).append("`\n");
         }
@@ -46,6 +49,9 @@ public final class MarkdownReporter {
             md.append("- Mode: `").append(run.configuration().mode()).append("`\n");
             md.append("- Provider: `").append(run.configuration().provider()).append("`\n");
             md.append("- Repetitions: ").append(run.configuration().repetitions()).append('\n');
+            if (run.configuration().javaVersion() != null) {
+                md.append("- Java: `").append(run.configuration().javaVersion()).append("`\n");
+            }
             if (run.configuration().datasetSplit() != null) {
                 md.append("- Split: `").append(run.configuration().datasetSplit()).append("`\n");
             }
@@ -183,6 +189,7 @@ public final class MarkdownReporter {
             md.append("**COMPARISON INVALID** — ").append(comparison.invalidReason()).append("\n\n");
             return md.toString();
         }
+        md.append("- Decision: **").append(comparison.decision()).append("**\n");
         md.append("- Baseline: `").append(comparison.baselineModel()).append("` run `")
                 .append(comparison.baselineRunId()).append("`\n");
         md.append("- Candidate: `").append(comparison.candidateModel()).append("` run `")

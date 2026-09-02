@@ -27,6 +27,15 @@ class DatasetVersionTest {
     }
 
     @Test
+    void packContentHashIsStableAndSixtyFourHex() {
+        String a = PackFiles.contentHash();
+        String b = PackFiles.contentHash();
+        assertEquals(a, b);
+        assertEquals(64, a.length());
+        assertTrue(a.matches("[0-9a-f]{64}"));
+    }
+
+    @Test
     void packDatasetIsVersioned() {
         assertEquals("pack-v1", PackFiles.datasetVersion());
         assertEquals("pack-v1", PackFiles.manifest().version());

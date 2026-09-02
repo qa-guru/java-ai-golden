@@ -168,6 +168,10 @@ public final class EvalConfig {
         return PackFiles.datasetVersion();
     }
 
+    public String packHash() {
+        return PackFiles.contentHash();
+    }
+
     public static EvalConfig resolve(String[] args) {
         EvalConfig config = new EvalConfig();
         Path file = configFile(args);

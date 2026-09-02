@@ -46,6 +46,26 @@ public final class PackFiles {
         return manifest().version();
     }
 
+    /**
+     * SHA-256 of pack files sorted by relative path. File listing order does not matter.
+     * Additive: old baselines without {@code packHash} still compare.
+     */
+    public static String contentHash() {
+        Path root = root();
+        StringBuilder canonical = new StringBuilder();
+        try (Stream<Path> stream = Files.walk(root)) {
+            List<Path> files = stream.filter(Files::isRegularFile).sorted().toList();
+            for (Path file : files) {
+                String rel = root.relativize(file).toString().replace('\\', '/');
+                canonical.append(rel).append('\n');
+                canonical.append(Files.readString(file, StandardCharsets.UTF_8)).append('\n');
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException("pack content hash", e);
+        }
+        return eval.dataset.DatasetIdentity.sha256Utf8(canonical.toString());
+    }
+
     static Path ragDir() {
         return root().resolve("rag");
     }

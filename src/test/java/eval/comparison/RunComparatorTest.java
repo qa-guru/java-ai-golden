@@ -147,22 +147,55 @@ class RunComparatorTest {
     }
 
     @Test
-    void absolutePassDoesNotWaiveDeltaRegression() {
-        EvalRun baseline = run("b", "generation-v1", List.of(
-                passing("1"), passing("2"), passing("3"), passing("4"), passing("5"),
-                passing("6"), passing("7"), passing("8"), passing("9"), passing("10"),
-                passing("11"), passing("12"), passing("13"), passing("14"), passing("15"),
-                passing("16"), passing("17"), passing("18"), passing("19"), failing("20")));
-        EvalRun candidate = run("c", "generation-v1", List.of(
-                passing("1"), passing("2"), passing("3"), passing("4"), passing("5"),
-                passing("6"), passing("7"), passing("8"), passing("9"), passing("10"),
-                passing("11"), passing("12"), passing("13"), passing("14"), passing("15"),
-                passing("16"), passing("17"), passing("18"), failing("19"), failing("20")));
-        Thresholds t = new Thresholds(0.90, null, null, null, null, null, null, null, null, 0.02);
+    void absolutePassDoesNotWaiveConfirmedDeltaRegression() {
+        EvalRun baseline = run("b", "generation-v1", nCases(20, 20));
+        EvalRun candidate = run("c", "generation-v1", nCases(5, 20));
+        Thresholds t = new Thresholds(0.20, null, null, null, null, null, null, null, null, 0.02);
         QualityGateResult gate = QualityGate.evaluate(candidate, t, baseline);
         assertFalse(gate.passed());
         assertTrue(gate.rules().stream().anyMatch(r -> "absolute".equals(r.kind()) && r.passed()));
         assertTrue(gate.rules().stream().anyMatch(r -> "delta".equals(r.kind()) && !r.passed()));
+        assertTrue(gate.rules().stream().anyMatch(r -> r.detail() != null && r.detail().contains("CONFIRMED REGRESSION")));
+    }
+
+    @Test
+    void packHashMismatchWhenBothPresentIsInvalid() {
+        EvalRun a = withHashes(run("a", "generation-v1", List.of(passing("1"))), "ds", "pack-a");
+        EvalRun b = withHashes(run("b", "generation-v1", List.of(passing("1"))), "ds", "pack-b");
+        ComparisonResult result = RunComparator.compare(a, b);
+        assertFalse(result.valid());
+        assertEquals("COMPARISON_INVALID", result.decision());
+        assertTrue(result.invalidReason().contains("packHash"));
+    }
+
+    @Test
+    void missingPackHashVersusPresentIsStillValid() {
+        EvalRun unhashed = withHashes(run("a", "generation-v1", List.of(passing("1"))), "ds", null);
+        EvalRun hashed = withHashes(run("b", "generation-v1", List.of(passing("1"))), "ds", "pack-a");
+        ComparisonResult result = RunComparator.compare(unhashed, hashed);
+        assertTrue(result.valid());
+    }
+
+    @Test
+    void overlappingWilsonCiIsNotConfirmedRegression() {
+        EvalRun baseline = run("b", "generation-v1", nCases(19, 20));
+        EvalRun candidate = run("c", "generation-v1", nCases(18, 20));
+        ComparisonResult result = RunComparator.compare(baseline, candidate, Thresholds.liveDelta());
+        assertTrue(result.valid());
+        assertEquals("NO_CONFIRMED_REGRESSION", result.decision());
+        assertTrue(result.qualityGate().passed());
+        assertTrue(result.qualityGate().rules().stream()
+                .anyMatch(r -> "delta".equals(r.kind()) && r.passed() && r.detail().contains("NO CONFIRMED REGRESSION")));
+    }
+
+    @Test
+    void confirmedDropFailsWhenWilsonIntervalsSeparate() {
+        EvalRun baseline = run("b", "generation-v1", nCases(20, 20));
+        EvalRun candidate = run("c", "generation-v1", nCases(5, 20));
+        ComparisonResult result = RunComparator.compare(baseline, candidate, Thresholds.liveDelta());
+        assertTrue(result.valid());
+        assertEquals("CONFIRMED_REGRESSION", result.decision());
+        assertFalse(result.qualityGate().passed());
     }
 
     @Test
@@ -186,13 +219,13 @@ class RunComparatorTest {
         EvalRun a = run("a", "generation-v1", List.of(passing("1")));
         EvalRun hashedA = new EvalRun(
                 a.runId(), a.timestamp(), a.model(), a.judgeModel(), a.datasetVersion(), a.packDatasetVersion(),
-                "aaa", a.gitCommit(), a.experimentId(), a.configFingerprint(), a.configuration(),
+                "aaa", null, a.gitCommit(), a.experimentId(), a.configFingerprint(), a.configuration(),
                 a.casesTotal(), a.casesPassed(), a.casesFailed(), a.casesSkipped(), a.casesError(),
                 a.attemptsTotal(), a.attemptsPassed(), a.attemptsFailed(), a.attemptsSkipped(), a.attemptsError(),
                 a.metrics(), a.cases(), a.durationMs(), a.qualityGate());
         EvalRun hashedB = new EvalRun(
                 "b", a.timestamp(), a.model(), a.judgeModel(), a.datasetVersion(), a.packDatasetVersion(),
-                "bbb", a.gitCommit(), a.experimentId(), a.configFingerprint(), a.configuration(),
+                "bbb", null, a.gitCommit(), a.experimentId(), a.configFingerprint(), a.configuration(),
                 a.casesTotal(), a.casesPassed(), a.casesFailed(), a.casesSkipped(), a.casesError(),
                 a.attemptsTotal(), a.attemptsPassed(), a.attemptsFailed(), a.attemptsSkipped(), a.attemptsError(),
                 a.metrics(), a.cases(), a.durationMs(), a.qualityGate());
@@ -212,6 +245,7 @@ class RunComparatorTest {
                 unhashed.datasetVersion(),
                 unhashed.packDatasetVersion(),
                 "aaa",
+                null,
                 unhashed.gitCommit(),
                 unhashed.experimentId(),
                 unhashed.configFingerprint(),
@@ -265,6 +299,7 @@ class RunComparatorTest {
         EvalRun candidate = run("c", "generation-v1", List.of(erroring("1"), passing("2")));
         ComparisonResult result = RunComparator.compare(baseline, candidate, Thresholds.liveDelta());
         assertTrue(result.valid());
+        assertEquals("NO_CONFIRMED_REGRESSION", result.decision());
         assertEquals(0, result.regressions());
         assertEquals(0, result.improvements());
         assertEquals(CaseRegression.NEW_ERROR, find(result, "1"));
@@ -402,7 +437,7 @@ class RunComparatorTest {
     }
 
     @Test
-    void deltaRegressionOfThreePointsFailsWhenAllowedIsTwo() {
+    void threePointDropOnN20IsNotConfirmedRegression() {
         EvalRun baseline = run("b", "generation-v1", List.of(
                 passing("1"), passing("2"), passing("3"), passing("4"), passing("5"),
                 passing("6"), passing("7"), passing("8"), passing("9"), passing("10"),
@@ -415,8 +450,47 @@ class RunComparatorTest {
                 passing("16"), passing("17"), failing("18"), failing("19"), failing("20")));
         Thresholds t = new Thresholds(null, null, null, null, null, null, null, null, null, 0.02);
         QualityGateResult gate = QualityGate.evaluate(candidate, t, baseline);
-        assertFalse(gate.passed());
-        assertTrue(gate.rules().stream().anyMatch(r -> "delta".equals(r.kind()) && !r.passed()));
+        assertTrue(gate.passed());
+        assertTrue(gate.rules().stream().anyMatch(
+                r -> "delta".equals(r.kind()) && r.passed() && r.detail().contains("NO CONFIRMED REGRESSION")));
+    }
+
+    private static EvalRun withHashes(EvalRun run, String datasetHash, String packHash) {
+        return new EvalRun(
+                run.runId(),
+                run.timestamp(),
+                run.model(),
+                run.judgeModel(),
+                run.datasetVersion(),
+                run.packDatasetVersion(),
+                datasetHash,
+                packHash,
+                run.gitCommit(),
+                run.experimentId(),
+                run.configFingerprint(),
+                run.configuration(),
+                run.casesTotal(),
+                run.casesPassed(),
+                run.casesFailed(),
+                run.casesSkipped(),
+                run.casesError(),
+                run.attemptsTotal(),
+                run.attemptsPassed(),
+                run.attemptsFailed(),
+                run.attemptsSkipped(),
+                run.attemptsError(),
+                run.metrics(),
+                run.cases(),
+                run.durationMs(),
+                run.qualityGate());
+    }
+
+    private static List<CaseResult> nCases(int pass, int total) {
+        java.util.ArrayList<CaseResult> out = new java.util.ArrayList<>();
+        for (int i = 1; i <= total; i++) {
+            out.add(i <= pass ? passing("c" + i) : failing("c" + i));
+        }
+        return out;
     }
 
     private static CaseRegression find(ComparisonResult result, String id) {

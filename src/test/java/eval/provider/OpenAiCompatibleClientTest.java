@@ -30,6 +30,13 @@ class OpenAiCompatibleClientTest {
     }
 
     @Test
+    void http429IsRateLimit() {
+        assertEquals(EvalInfrastructureException.RATE_LIMIT, EvalInfrastructureException.httpKind(429));
+        assertEquals(EvalInfrastructureException.HTTP_ERROR, EvalInfrastructureException.httpKind(500));
+        assertEquals(EvalInfrastructureException.HTTP_ERROR, EvalInfrastructureException.httpKind(404));
+    }
+
+    @Test
     void emptyChoicesIsInfrastructure() {
         EvalInfrastructureException err = assertThrows(
                 EvalInfrastructureException.class,

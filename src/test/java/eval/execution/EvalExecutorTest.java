@@ -43,8 +43,10 @@ class EvalExecutorTest {
         assertEquals("generation-v1", run.datasetVersion());
         assertEquals("pack-v1", run.packDatasetVersion());
         assertTrue(run.datasetHash() != null && run.datasetHash().length() == 64);
+        assertTrue(run.packHash() != null && run.packHash().length() == 64);
         assertTrue(run.configFingerprint() != null && run.configFingerprint().length() == 64);
         assertEquals("DETERMINISTIC", run.configuration().mode());
+        assertEquals(eval.domain.RunConfiguration.currentJavaVersion(), run.configuration().javaVersion());
         assertTrue(run.metrics().overallPassRate().value() > 0.99);
         assertTrue(run.metrics().retrievalPassRate().value() > 0.99);
         assertTrue(run.qualityGate() != null && run.qualityGate().passed());

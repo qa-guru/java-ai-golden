@@ -82,6 +82,7 @@ public final class ConsoleReporter {
                 out.append("COMPARISON INVALID\n");
                 out.append(comparison.invalidReason()).append('\n');
             } else {
+                out.append("Decision:     ").append(comparison.decision()).append('\n');
                 out.append("Unchanged pass: ").append(comparison.unchangedPass()).append('\n');
                 out.append("Unchanged fail: ").append(comparison.unchangedFail()).append('\n');
                 out.append("Regressions:    ").append(comparison.regressions()).append('\n');

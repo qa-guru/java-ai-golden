@@ -14,6 +14,7 @@ public final class EvalInfrastructureException extends IOException {
     public static final String TIMEOUT = "TIMEOUT";
     public static final String PARSER_ERROR = "PARSER_ERROR";
     public static final String JUDGE_ERROR = "JUDGE_ERROR";
+    public static final String RATE_LIMIT = "RATE_LIMIT";
 
     private final String kind;
 
@@ -29,5 +30,9 @@ public final class EvalInfrastructureException extends IOException {
 
     public String kind() {
         return kind;
+    }
+
+    public static String httpKind(int status) {
+        return status == 429 ? RATE_LIMIT : HTTP_ERROR;
     }
 }

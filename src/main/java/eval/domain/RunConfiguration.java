@@ -18,7 +18,8 @@ public record RunConfiguration(
         String outputDir,
         String provider,
         String experimentId,
-        String datasetSplit
+        String datasetSplit,
+        String javaVersion
 ) {
     public RunConfiguration(
             String mode,
@@ -41,7 +42,40 @@ public record RunConfiguration(
                 outputDir,
                 provider,
                 null,
-                "development");
+                "development",
+                null);
+    }
+
+    public RunConfiguration(
+            String mode,
+            String model,
+            String judgeModel,
+            boolean judgeEnabled,
+            int repetitions,
+            boolean includeRed,
+            String artifactMode,
+            String outputDir,
+            String provider,
+            String experimentId,
+            String datasetSplit) {
+        this(
+                mode,
+                model,
+                judgeModel,
+                judgeEnabled,
+                repetitions,
+                includeRed,
+                artifactMode,
+                outputDir,
+                provider,
+                experimentId,
+                datasetSplit,
+                null);
+    }
+
+    public static String currentJavaVersion() {
+        String v = System.getProperty("java.specification.version");
+        return v == null || v.isBlank() ? "unknown" : v;
     }
 
     public Map<String, String> asMap() {
@@ -56,7 +90,8 @@ public record RunConfiguration(
                 Map.entry("outputDir", String.valueOf(outputDir)),
                 Map.entry("provider", String.valueOf(provider)),
                 Map.entry("experimentId", String.valueOf(experimentId)),
-                Map.entry("datasetSplit", String.valueOf(datasetSplit)));
+                Map.entry("datasetSplit", String.valueOf(datasetSplit)),
+                Map.entry("javaVersion", String.valueOf(javaVersion)));
     }
 
     public List<String> differences(RunConfiguration other) {
@@ -66,7 +101,10 @@ public record RunConfiguration(
         java.util.ArrayList<String> out = new java.util.ArrayList<>();
         asMap().forEach((k, v) -> {
             String ov = other.asMap().get(k);
-            if (!Objects.equals(v, ov) && !"outputDir".equals(k) && !"artifactMode".equals(k)) {
+            if (!Objects.equals(v, ov)
+                    && !"outputDir".equals(k)
+                    && !"artifactMode".equals(k)
+                    && !"javaVersion".equals(k)) {
                 out.add(k + ": " + v + " vs " + ov);
             }
         });

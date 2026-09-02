@@ -47,6 +47,11 @@ public final class RunComparator {
                     "COMPARISON INVALID: packDatasetVersion mismatch: "
                             + baseline.packDatasetVersion() + " vs " + candidate.packDatasetVersion());
         }
+        if (baseline.packHash() != null && candidate.packHash() != null
+                && !baseline.packHash().equals(candidate.packHash())) {
+            return ComparisonResult.invalid(
+                    "COMPARISON INVALID: packHash mismatch (pack files changed without a pack version bump)");
+        }
         String judge = judgeMismatch(baseline, candidate);
         if (judge != null) {
             return ComparisonResult.invalid(judge);
@@ -107,7 +112,8 @@ public final class RunComparator {
                 unchangedFail,
                 regressions,
                 improvements,
-                mcnemar);
+                mcnemar,
+                null);
     }
 
     static String judgeMismatch(EvalRun baseline, EvalRun candidate) {

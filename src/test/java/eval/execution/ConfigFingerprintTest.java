@@ -44,5 +44,16 @@ class ConfigFingerprintTest {
         })).execute();
         assertEquals(64, run.configFingerprint().length());
         assertEquals(GoldenReader.datasetHash(), run.datasetHash());
+        assertEquals(eval.pack.PackFiles.contentHash(), run.packHash());
+        assertEquals(64, run.packHash().length());
+    }
+
+    @Test
+    void packHashChangeChangesFingerprint() {
+        RunConfiguration a = new RunConfiguration(
+                "DETERMINISTIC", "m", "j", false, 1, false, "FAILURE", "build", "ollama");
+        assertNotEquals(
+                ConfigFingerprint.of(a, "generation-v1", "h", "pack-v1", null, "abc", "pack-aaa"),
+                ConfigFingerprint.of(a, "generation-v1", "h", "pack-v1", null, "abc", "pack-bbb"));
     }
 }

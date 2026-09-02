@@ -23,6 +23,17 @@ public final class ConfigFingerprint {
             String packDatasetVersion,
             String experimentId,
             String gitCommit) {
+        return of(configuration, datasetVersion, datasetHash, packDatasetVersion, experimentId, gitCommit, null);
+    }
+
+    public static String of(
+            RunConfiguration configuration,
+            String datasetVersion,
+            String datasetHash,
+            String packDatasetVersion,
+            String experimentId,
+            String gitCommit,
+            String packHash) {
         Map<String, String> fields = new TreeMap<>();
         fields.put("artifactMode", "omitted");
         fields.put("datasetHash", nz(datasetHash));
@@ -37,6 +48,7 @@ public final class ConfigFingerprint {
         fields.put("mode", configuration == null ? "" : nz(configuration.mode()));
         fields.put("model", configuration == null ? "" : nz(configuration.model()));
         fields.put("packDatasetVersion", nz(packDatasetVersion));
+        fields.put("packHash", nz(packHash));
         fields.put("provider", configuration == null ? "" : nz(configuration.provider()));
         fields.put("repetitions", configuration == null ? "" : String.valueOf(configuration.repetitions()));
         String canonical = fields.entrySet().stream()

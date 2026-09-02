@@ -172,7 +172,7 @@ Same dataset, same graders, same attempt count. Table: Overall / Contract / RAG 
 ./gradlew evalRegression
 ```
 
-Requires matching `datasetVersion` (and `datasetHash` when both runs have one). Per-case: `NEW_FAILURE` | `RECOVERED` | `UNCHANGED_PASS` | `UNCHANGED_FAIL` | `NEW_ERROR` (infra, not quality). Metric deltas: `IMPROVED` | `REGRESSED` | `UNCHANGED`.
+Requires matching `datasetVersion` (and `datasetHash` when both runs have one). Per-case: `NEW_FAILURE` | `RECOVERED` | `UNCHANGED_PASS` | `UNCHANGED_FAIL` | `NEW_ERROR` (infra, not quality). Metric deltas: `IMPROVED` | `REGRESSED` | `UNCHANGED`. Live delta FAIL requires a drop beyond `allowedRegression` **and** non-overlapping 95% Wilson CIs (`CONFIRMED_REGRESSION`); overlapping CIs are `NO_CONFIRMED_REGRESSION`.
 
 Paired summary: unchanged pass/fail, regressions, improvements. McNemar is informational, never the sole gate.
 

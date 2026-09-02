@@ -81,7 +81,7 @@ public final class OllamaClient implements ModelRunner {
 
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
             throw new EvalInfrastructureException(
-                    EvalInfrastructureException.HTTP_ERROR,
+                    EvalInfrastructureException.httpKind(response.statusCode()),
                     "Ollama HTTP " + response.statusCode() + ": " + response.body());
         }
         JsonNode root;

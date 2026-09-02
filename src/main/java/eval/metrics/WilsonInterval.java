@@ -1,6 +1,7 @@
 package eval.metrics;
 
 import eval.domain.ConfidenceInterval;
+import eval.domain.Rate;
 
 /**
  * Wilson score interval for a binomial proportion. Preferred over a normal approximation
@@ -38,5 +39,23 @@ public final class WilsonInterval {
             upper = tmp;
         }
         return new ConfidenceInterval(lower, upper, "wilson");
+    }
+
+    public static boolean overlap(ConfidenceInterval a, ConfidenceInterval b) {
+        if (a == null || b == null) {
+            return true;
+        }
+        return a.lower() <= b.upper() + 1e-12 && b.lower() <= a.upper() + 1e-12;
+    }
+
+    /**
+     * True when two defined rates have non-overlapping 95% Wilson intervals.
+     * Small n almost always overlaps — that is the point.
+     */
+    public static boolean confirmedChange(Rate left, Rate right) {
+        if (left == null || right == null || !left.defined() || !right.defined()) {
+            return false;
+        }
+        return !overlap(left.ci95(), right.ci95());
     }
 }

@@ -16,6 +16,7 @@ public record EvalRun(
         String datasetVersion,
         String packDatasetVersion,
         String datasetHash,
+        String packHash,
         String gitCommit,
         String experimentId,
         String configFingerprint,
@@ -41,6 +42,7 @@ public record EvalRun(
             throw new IllegalArgumentException("runId");
         }
         datasetHash = blankToNull(datasetHash);
+        packHash = blankToNull(packHash);
         experimentId = blankToNull(experimentId);
         configFingerprint = blankToNull(configFingerprint);
     }
@@ -78,6 +80,7 @@ public record EvalRun(
                 datasetVersion,
                 packDatasetVersion,
                 null,
+                null,
                 gitCommit,
                 null,
                 null,
@@ -107,6 +110,7 @@ public record EvalRun(
                 datasetVersion,
                 packDatasetVersion,
                 datasetHash,
+                packHash,
                 gitCommit,
                 experimentId,
                 configFingerprint,

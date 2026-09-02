@@ -81,7 +81,7 @@ public final class OpenAiCompatibleClient implements ModelRunner {
         long durationMs = Math.max(1L, (System.nanoTime() - started) / 1_000_000L);
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
             throw new EvalInfrastructureException(
-                    EvalInfrastructureException.HTTP_ERROR,
+                    EvalInfrastructureException.httpKind(response.statusCode()),
                     "HTTP " + response.statusCode() + ": " + response.body());
         }
         return parse(response.body(), durationMs);

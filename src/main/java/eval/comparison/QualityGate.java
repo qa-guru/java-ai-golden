@@ -8,6 +8,7 @@ import eval.domain.GateRuleResult;
 import eval.domain.QualityGateResult;
 import eval.domain.Rate;
 import eval.domain.Thresholds;
+import eval.metrics.WilsonInterval;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -166,26 +167,53 @@ public final class QualityGate {
             return;
         }
         double floor = baseline.value() - allowed;
-        boolean ok = candidate.value() + 1e-12 >= floor;
-        rules.add(new GateRuleResult(
-                name + ".delta",
-                ok
-                        ? String.format(
-                                java.util.Locale.ROOT,
-                                "candidate %.3f >= baseline %.3f - %.3f",
-                                candidate.value(),
-                                baseline.value(),
-                                allowed)
-                        : String.format(
-                                java.util.Locale.ROOT,
-                                "regressed more than allowed: %.3f < %.3f - %.3f",
-                                candidate.value(),
-                                baseline.value(),
-                                allowed),
-                ok,
-                candidate.value() - baseline.value(),
-                -allowed,
-                "delta"));
+        boolean withinBudget = candidate.value() + 1e-12 >= floor;
+        if (withinBudget) {
+            rules.add(new GateRuleResult(
+                    name + ".delta",
+                    String.format(
+                            java.util.Locale.ROOT,
+                            "candidate %.3f >= baseline %.3f - %.3f",
+                            candidate.value(),
+                            baseline.value(),
+                            allowed),
+                    true,
+                    candidate.value() - baseline.value(),
+                    -allowed,
+                    "delta"));
+            return;
+        }
+        boolean confirmed = WilsonInterval.confirmedChange(baseline, candidate);
+        String ci = "baseline CI " + baseline.asPercentWithCi() + "; candidate CI " + candidate.asPercentWithCi();
+        if (confirmed) {
+            rules.add(new GateRuleResult(
+                    name + ".delta",
+                    String.format(
+                            java.util.Locale.ROOT,
+                            "CONFIRMED REGRESSION: %.3f < %.3f - %.3f and 95%% Wilson CIs do not overlap (%s)",
+                            candidate.value(),
+                            baseline.value(),
+                            allowed,
+                            ci),
+                    false,
+                    candidate.value() - baseline.value(),
+                    -allowed,
+                    "delta"));
+        } else {
+            rules.add(new GateRuleResult(
+                    name + ".delta",
+                    String.format(
+                            java.util.Locale.ROOT,
+                            "NO CONFIRMED REGRESSION: observed %.3f < %.3f - %.3f but 95%% Wilson CIs overlap (%s)",
+                            candidate.value(),
+                            baseline.value(),
+                            allowed,
+                            ci),
+                    true,
+                    candidate.value() - baseline.value(),
+                    -allowed,
+                    "delta"));
+        }
     }
 
     private static void addDeltaMax(List<GateRuleResult> rules, String name, Rate baseline, Rate candidate, double allowed) {
@@ -193,13 +221,34 @@ public final class QualityGate {
             return;
         }
         double ceil = baseline.value() + allowed;
-        boolean ok = candidate.value() - 1e-12 <= ceil;
-        rules.add(new GateRuleResult(
-                name + ".delta",
-                ok ? "PASS" : "increased more than allowed",
-                ok,
-                candidate.value() - baseline.value(),
-                allowed,
-                "delta"));
+        boolean withinBudget = candidate.value() - 1e-12 <= ceil;
+        if (withinBudget) {
+            rules.add(new GateRuleResult(
+                    name + ".delta",
+                    "PASS",
+                    true,
+                    candidate.value() - baseline.value(),
+                    allowed,
+                    "delta"));
+            return;
+        }
+        boolean confirmed = WilsonInterval.confirmedChange(baseline, candidate);
+        if (confirmed) {
+            rules.add(new GateRuleResult(
+                    name + ".delta",
+                    "CONFIRMED REGRESSION: increased more than allowed and 95% Wilson CIs do not overlap",
+                    false,
+                    candidate.value() - baseline.value(),
+                    allowed,
+                    "delta"));
+        } else {
+            rules.add(new GateRuleResult(
+                    name + ".delta",
+                    "NO CONFIRMED REGRESSION: increased more than allowed but 95% Wilson CIs overlap",
+                    true,
+                    candidate.value() - baseline.value(),
+                    allowed,
+                    "delta"));
+        }
     }
 }
