@@ -1,5 +1,7 @@
 package eval.comparison;
 
+import eval.domain.CaseComparison;
+import eval.domain.CaseRegression;
 import eval.domain.EvalMetrics;
 import eval.domain.EvalRun;
 import eval.domain.GateRuleResult;
@@ -16,6 +18,12 @@ public final class QualityGate {
     }
 
     public static QualityGateResult evaluate(EvalRun run, Thresholds absolute, EvalRun baseline) {
+        List<CaseComparison> pairs = baseline == null ? List.of() : RunComparator.compareCases(baseline, run);
+        return evaluate(run, absolute, baseline, pairs);
+    }
+
+    public static QualityGateResult evaluate(
+            EvalRun run, Thresholds absolute, EvalRun baseline, List<CaseComparison> pairs) {
         if (run == null || run.metrics() == null) {
             return QualityGateResult.fail(List.of(
                     new GateRuleResult("run", "missing eval run", false, null, null, "absolute")));
@@ -25,15 +33,23 @@ public final class QualityGate {
         }
         List<GateRuleResult> rules = new ArrayList<>();
         EvalMetrics m = run.metrics();
-        addMin(rules, "overallPassRate", m.overallPassRate(), absolute.overallPassRate());
-        addMin(rules, "contractPassRate", m.contractPassRate(), absolute.contractPassRate());
-        addMin(rules, "judgeAcceptRate", m.judgeAcceptRate(), absolute.judgeAcceptRate());
-        addMin(rules, "retrievalPassRate", m.retrievalPassRate(), absolute.retrievalPassRate());
-        addMin(rules, "negativeCasePassRate", m.negativeCasePassRate(), absolute.negativeCasePassRate());
-        addMin(rules, "refusalAccuracy", m.refusalAccuracy(), absolute.refusalAccuracy());
-        addMin(rules, "layerAccuracy", m.layerAccuracy(), absolute.layerAccuracy());
-        addMin(rules, "ragAccuracy", m.ragAccuracy(), absolute.ragAccuracy());
-        addMax(rules, "hallucinationRate", m.hallucinationRate(), absolute.hallucinationRate());
+
+        if (run.hasNoQualityAttempts()) {
+            String why = run.attemptsError() > 0
+                    ? "no quality attempts (all infrastructure errors)"
+                    : "no quality attempts (empty dataset or all skipped)";
+            rules.add(new GateRuleResult("qualityAttempts", why, false, 0.0, 1.0, "execution"));
+        }
+
+        addMin(rules, "overallPassRate", m.overallPassRate(), absolute.overallPassRate(), true);
+        addMin(rules, "contractPassRate", m.contractPassRate(), absolute.contractPassRate(), true);
+        addMin(rules, "judgeAcceptRate", m.judgeAcceptRate(), absolute.judgeAcceptRate(), false);
+        addMin(rules, "retrievalPassRate", m.retrievalPassRate(), absolute.retrievalPassRate(), false);
+        addMin(rules, "negativeCasePassRate", m.negativeCasePassRate(), absolute.negativeCasePassRate(), false);
+        addMin(rules, "refusalAccuracy", m.refusalAccuracy(), absolute.refusalAccuracy(), false);
+        addMin(rules, "layerAccuracy", m.layerAccuracy(), absolute.layerAccuracy(), false);
+        addMin(rules, "ragAccuracy", m.ragAccuracy(), absolute.ragAccuracy(), false);
+        addMax(rules, "hallucinationRate", m.hallucinationRate(), absolute.hallucinationRate(), false);
 
         if (baseline != null && absolute.allowedRegression() != null && baseline.metrics() != null) {
             double allowed = absolute.allowedRegression();
@@ -48,16 +64,40 @@ public final class QualityGate {
             addDeltaMax(rules, "hallucinationRate", b.hallucinationRate(), m.hallucinationRate(), allowed);
         }
 
+        if (pairs != null) {
+            for (CaseComparison pair : pairs) {
+                if (pair.regression() != CaseRegression.NEW_FAILURE) {
+                    continue;
+                }
+                boolean critical = run.cases().stream()
+                        .filter(c -> pair.caseId().equals(c.caseId()))
+                        .anyMatch(c -> c.hasCriticalViolation());
+                if (critical) {
+                    rules.add(new GateRuleResult(
+                            "criticalNewFailure." + pair.caseId(),
+                            "CRITICAL new failure cannot be offset by overall improvement",
+                            false,
+                            null,
+                            null,
+                            "severity"));
+                }
+            }
+        }
+
         boolean passed = rules.stream().allMatch(GateRuleResult::passed);
         return passed ? QualityGateResult.pass(rules) : QualityGateResult.fail(rules);
     }
 
-    private static void addMin(List<GateRuleResult> rules, String name, Rate actual, Double min) {
+    private static void addMin(
+            List<GateRuleResult> rules, String name, Rate actual, Double min, boolean requiredWhenSet) {
         if (min == null) {
             return;
         }
         if (!actual.defined()) {
-            rules.add(new GateRuleResult(name, "undefined (no attempts)", true, null, min, "absolute"));
+            if (requiredWhenSet) {
+                rules.add(new GateRuleResult(
+                        name, "undefined (no quality attempts) — not 100%", false, null, min, "absolute"));
+            }
             return;
         }
         boolean ok = actual.value() + 1e-12 >= min;
@@ -72,12 +112,16 @@ public final class QualityGate {
                 "absolute"));
     }
 
-    private static void addMax(List<GateRuleResult> rules, String name, Rate actual, Double max) {
+    private static void addMax(
+            List<GateRuleResult> rules, String name, Rate actual, Double max, boolean requiredWhenSet) {
         if (max == null) {
             return;
         }
         if (!actual.defined()) {
-            rules.add(new GateRuleResult(name, "undefined (no attempts)", true, null, max, "absolute"));
+            if (requiredWhenSet) {
+                rules.add(new GateRuleResult(
+                        name, "undefined (no quality attempts)", false, null, max, "absolute"));
+            }
             return;
         }
         boolean ok = actual.value() - 1e-12 <= max;
@@ -100,7 +144,19 @@ public final class QualityGate {
         boolean ok = candidate.value() + 1e-12 >= floor;
         rules.add(new GateRuleResult(
                 name + ".delta",
-                ok ? "PASS" : "regressed more than allowed",
+                ok
+                        ? String.format(
+                                java.util.Locale.ROOT,
+                                "candidate %.3f >= baseline %.3f - %.3f",
+                                candidate.value(),
+                                baseline.value(),
+                                allowed)
+                        : String.format(
+                                java.util.Locale.ROOT,
+                                "regressed more than allowed: %.3f < %.3f - %.3f",
+                                candidate.value(),
+                                baseline.value(),
+                                allowed),
                 ok,
                 candidate.value() - baseline.value(),
                 -allowed,

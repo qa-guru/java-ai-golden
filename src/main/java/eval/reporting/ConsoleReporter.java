@@ -7,9 +7,11 @@ import eval.domain.EvalMetrics;
 import eval.domain.EvalRun;
 import eval.domain.MetricDelta;
 import eval.domain.QualityGateResult;
+import eval.domain.Rate;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 public final class ConsoleReporter {
 
@@ -27,29 +29,44 @@ public final class ConsoleReporter {
             out.append(" / ").append(run.packDatasetVersion());
         }
         out.append('\n');
+        if (run.experimentId() != null) {
+            out.append("Experiment:   ").append(run.experimentId()).append('\n');
+        }
         out.append("Commit:       ").append(run.gitCommit()).append('\n');
         int reps = run.configuration() == null ? 1 : run.configuration().repetitions();
         out.append("Repetitions:  ").append(reps).append('\n');
-        out.append("CASES\n");
-        out.append("-----\n");
-        out.append("Total:        ").append(run.casesTotal()).append('\n');
-        out.append("Attempts:     ").append(run.attemptsTotal()).append('\n');
-        out.append("Passed:       ").append(run.attemptsPassed()).append('\n');
-        out.append("Failed:       ").append(run.attemptsFailed()).append('\n');
-        out.append("Errors:       ").append(run.attemptsError()).append('\n');
+        out.append("EXECUTION\n");
+        out.append("---------\n");
+        out.append("Cases:        ").append(run.casesTotal()).append('\n');
+        out.append("Executed:     ").append(run.casesExecuted()).append('\n');
+        out.append("Passed:       ").append(run.casesPassed()).append('\n');
+        out.append("Failed:       ").append(run.casesFailed()).append('\n');
         out.append("Skipped:      ").append(run.casesSkipped()).append('\n');
+        out.append("Errors:       ").append(run.casesError()).append('\n');
+        out.append("Attempts:     ").append(run.attemptsPassed()).append(" pass / ")
+                .append(run.attemptsFailed()).append(" fail / ")
+                .append(run.attemptsError()).append(" error / ")
+                .append(run.attemptsSkipped()).append(" skip\n");
+        out.append("Pass rate:    ").append(pctOfExecuted(run)).append('\n');
+        out.append("Coverage:     ").append(run.coverage().asPercent()).append('\n');
         out.append("METRICS\n");
         out.append("-------\n");
         EvalMetrics m = run.metrics();
-        line(out, "Overall", m.overallPassRate().asPercent());
+        line(out, "Overall", m.overallPassRate().asPercentWithCi());
         line(out, "Contract", m.contractPassRate().asPercent());
         line(out, "Judge", m.judgeAcceptRate().asPercent());
         line(out, "Retrieval", m.retrievalPassRate().asPercent());
         line(out, "Negative", m.negativeCasePassRate().asPercent());
         line(out, "Refusal", m.refusalAccuracy().asPercent());
-        line(out, "Hallucination", m.hallucinationRate().asPercent());
+        line(out, "Hallucination (fail rate)", m.hallucinationRate().asPercent());
         line(out, "Layer", m.layerAccuracy().asPercent());
         line(out, "RAG", m.ragAccuracy().asPercent());
+        line(out, "Unstable", m.unstableCaseRate().asPercent());
+        if (m.slices() != null) {
+            for (Map.Entry<String, Rate> e : m.slices().entrySet()) {
+                line(out, MarkdownReporter.sliceLabel(e.getKey()), e.getValue().asPercent());
+            }
+        }
         if (m.weightedScore() != null) {
             out.append("Weighted:     ")
                     .append(String.format(Locale.ROOT, "%.3f", m.weightedScore()))
@@ -64,6 +81,10 @@ public final class ConsoleReporter {
                 out.append("COMPARISON INVALID\n");
                 out.append(comparison.invalidReason()).append('\n');
             } else {
+                out.append("Unchanged pass: ").append(comparison.unchangedPass()).append('\n');
+                out.append("Unchanged fail: ").append(comparison.unchangedFail()).append('\n');
+                out.append("Regressions:    ").append(comparison.regressions()).append('\n');
+                out.append("Improvements:   ").append(comparison.improvements()).append('\n');
                 for (MetricDelta d : comparison.metrics()) {
                     if (List.of("overallPassRate", "contractPassRate", "retrievalPassRate", "ragAccuracy", "hallucinationRate", "latencyAvgMs")
                             .contains(d.name())) {
@@ -109,6 +130,14 @@ public final class ConsoleReporter {
         return out.toString();
     }
 
+    private static String pctOfExecuted(EvalRun run) {
+        Rate overall = run.metrics().overallPassRate();
+        if (!overall.defined()) {
+            return "n/a (no quality attempts)";
+        }
+        return overall.asPercentWithCi() + " of executed";
+    }
+
     private static void printCases(StringBuilder out, ComparisonResult comparison, CaseRegression want) {
         boolean any = false;
         for (CaseComparison c : comparison.cases()) {
@@ -127,7 +156,7 @@ public final class ConsoleReporter {
     }
 
     private static String pad(String name) {
-        return String.format(Locale.ROOT, "%-16s", name + ":");
+        return String.format(Locale.ROOT, "%-32s", name + ":");
     }
 
     private static String truncate(String s, int n) {

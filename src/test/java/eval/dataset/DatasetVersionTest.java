@@ -48,4 +48,34 @@ class DatasetVersionTest {
         GoldenCase a = GoldenReader.require("jailbreak-env");
         assertThrows(IllegalStateException.class, () -> GoldenReader.requireUniqueIds(List.of(a, a)));
     }
+
+    @Test
+    void missingCaseIdIsRejected() {
+        assertThrows(Exception.class, () -> GoldenReader.parseLines(List.of("{\"prompt\":\"x\"}")));
+    }
+
+    @Test
+    void sameDatasetSameHashAndReorderDoesNotChangeHash() {
+        List<GoldenCase> rows = GoldenReader.loadAll();
+        List<GoldenCase> reversed = new java.util.ArrayList<>(rows);
+        java.util.Collections.reverse(reversed);
+        String a = eval.dataset.DatasetIdentity.hash(rows);
+        String b = eval.dataset.DatasetIdentity.hash(reversed);
+        assertEquals(a, b);
+        assertEquals(64, a.length());
+    }
+
+    @Test
+    void changingACaseChangesHash() {
+        List<GoldenCase> rows = new java.util.ArrayList<>(GoldenReader.loadAll());
+        GoldenCase first = rows.getFirst();
+        GoldenCase mutated = new GoldenCase(
+                first.id(),
+                first.prompt() + " extra",
+                first.expect(),
+                first.mustNot());
+        rows.set(0, mutated);
+        assertTrue(!eval.dataset.DatasetIdentity.hash(GoldenReader.loadAll())
+                .equals(eval.dataset.DatasetIdentity.hash(rows)));
+    }
 }

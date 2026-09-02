@@ -42,6 +42,9 @@ public final class EvalConfig {
     private String openaiBaseUrl = "https://api.openai.com";
     private String openaiApiKey = "";
     private Path configPath;
+    private String experimentId;
+    private String datasetSplit = "development";
+    private int judgeRepetitions = 1;
 
     public EvalMode mode() {
         return mode;
@@ -70,6 +73,25 @@ public final class EvalConfig {
             return 1;
         }
         return Math.max(1, repetitions);
+    }
+
+    public int judgeRepetitions() {
+        if (!judgeEnabled()) {
+            return 1;
+        }
+        return Math.max(1, judgeRepetitions);
+    }
+
+    public String experimentId() {
+        return experimentId;
+    }
+
+    public String datasetSplit() {
+        return datasetSplit == null || datasetSplit.isBlank() ? "development" : datasetSplit;
+    }
+
+    public boolean holdout() {
+        return "holdout".equalsIgnoreCase(datasetSplit());
     }
 
     public Path outputDir() {
@@ -129,7 +151,7 @@ public final class EvalConfig {
     }
 
     public String datasetVersion() {
-        return GoldenReader.datasetVersion();
+        return GoldenReader.datasetVersion(datasetSplit());
     }
 
     public String packDatasetVersion() {
@@ -170,6 +192,9 @@ public final class EvalConfig {
         copy.provider = this.provider;
         copy.openaiBaseUrl = this.openaiBaseUrl;
         copy.openaiApiKey = this.openaiApiKey;
+        copy.experimentId = this.experimentId;
+        copy.datasetSplit = this.datasetSplit;
+        copy.judgeRepetitions = this.judgeRepetitions;
         return copy;
     }
 
@@ -243,6 +268,15 @@ public final class EvalConfig {
             if (dto.openaiApiKey != null) {
                 config.openaiApiKey = dto.openaiApiKey;
             }
+            if (dto.experiment != null) {
+                config.experimentId = dto.experiment;
+            }
+            if (dto.datasetSplit != null) {
+                config.datasetSplit = dto.datasetSplit;
+            }
+            if (dto.judgeRepetitions != null) {
+                config.judgeRepetitions = dto.judgeRepetitions;
+            }
         } catch (IOException e) {
             throw new UncheckedIOException("Cannot read " + file, e);
         }
@@ -309,6 +343,18 @@ public final class EvalConfig {
         if (saveBaseline != null) {
             config.saveBaselinePath = Path.of(saveBaseline);
         }
+        String experiment = System.getProperty("experiment");
+        if (experiment != null) {
+            config.experimentId = experiment;
+        }
+        String split = System.getProperty("datasetSplit");
+        if (split != null) {
+            config.datasetSplit = split;
+        }
+        String judgeReps = System.getProperty("judgeRepetitions");
+        if (judgeReps != null) {
+            config.judgeRepetitions = Integer.parseInt(judgeReps);
+        }
         String live = System.getProperty("live");
         if ("true".equals(live)) {
             config.live = true;
@@ -359,6 +405,14 @@ public final class EvalConfig {
                 config.openaiBaseUrl = arg.substring("--openaiBaseUrl=".length());
             } else if (arg.startsWith("--openaiApiKey=")) {
                 config.openaiApiKey = arg.substring("--openaiApiKey=".length());
+            } else if (arg.startsWith("--experiment=")) {
+                config.experimentId = arg.substring("--experiment=".length());
+            } else if (arg.startsWith("--split=")) {
+                config.datasetSplit = arg.substring("--split=".length());
+            } else if (arg.startsWith("--datasetSplit=")) {
+                config.datasetSplit = arg.substring("--datasetSplit=".length());
+            } else if (arg.startsWith("--judge-repetitions=")) {
+                config.judgeRepetitions = Integer.parseInt(arg.substring("--judge-repetitions=".length()));
             }
         }
         if (config.mode == EvalMode.LIVE || config.mode == EvalMode.BENCHMARK) {
@@ -399,5 +453,8 @@ public final class EvalConfig {
         public String provider;
         public String openaiBaseUrl;
         public String openaiApiKey;
+        public String experiment;
+        public String datasetSplit;
+        public Integer judgeRepetitions;
     }
 }

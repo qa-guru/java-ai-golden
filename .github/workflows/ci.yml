@@ -7,6 +7,8 @@ on:
   workflow_dispatch:
 
 jobs:
+  # PR: deterministic mill + framework tests + fixture eval + regression vs committed baseline.
+  # MAIN live smoke / NIGHTLY full live: local or self-hosted with Ollama. Not on ubuntu-latest.
   pr:
     name: deterministic eval
     runs-on: ubuntu-latest
@@ -22,6 +24,10 @@ jobs:
         run: ./gradlew evalDeterministic --console=plain
       - name: Regression vs committed baseline
         run: ./gradlew evalRegression --console=plain
+      - name: Holdout eval (fixtures, not for tuning)
+        run: ./gradlew evalHoldout evalHoldoutRegression --console=plain
+      - name: Judge calibration (canned)
+        run: ./gradlew evalJudgeCalibration --console=plain
       - name: Upload eval artifacts
         if: always()
         uses: actions/upload-artifact@v4

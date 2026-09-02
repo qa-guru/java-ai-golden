@@ -1,6 +1,7 @@
 package eval.domain;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import eval.comparison.McNemar;
 
 import java.util.List;
 
@@ -16,7 +17,12 @@ public record ComparisonResult(
         List<String> configurationDifferences,
         List<MetricDelta> metrics,
         List<CaseComparison> cases,
-        QualityGateResult qualityGate
+        QualityGateResult qualityGate,
+        int unchangedPass,
+        int unchangedFail,
+        int regressions,
+        int improvements,
+        McNemar mcnemar
 ) {
     public ComparisonResult {
         configurationDifferences = configurationDifferences == null ? List.of() : List.copyOf(configurationDifferences);
@@ -24,9 +30,41 @@ public record ComparisonResult(
         cases = cases == null ? List.of() : List.copyOf(cases);
     }
 
+    public ComparisonResult(
+            boolean valid,
+            String invalidReason,
+            String baselineRunId,
+            String candidateRunId,
+            String baselineModel,
+            String candidateModel,
+            String datasetVersion,
+            List<String> configurationDifferences,
+            List<MetricDelta> metrics,
+            List<CaseComparison> cases,
+            QualityGateResult qualityGate) {
+        this(
+                valid,
+                invalidReason,
+                baselineRunId,
+                candidateRunId,
+                baselineModel,
+                candidateModel,
+                datasetVersion,
+                configurationDifferences,
+                metrics,
+                cases,
+                qualityGate,
+                count(cases, CaseRegression.UNCHANGED_PASS),
+                count(cases, CaseRegression.UNCHANGED_FAIL),
+                count(cases, CaseRegression.NEW_FAILURE),
+                count(cases, CaseRegression.RECOVERED),
+                null);
+    }
+
     public static ComparisonResult invalid(String reason) {
         return new ComparisonResult(
-                false, reason, null, null, null, null, null, List.of(), List.of(), List.of(), null);
+                false, reason, null, null, null, null, null, List.of(), List.of(), List.of(), null,
+                0, 0, 0, 0, null);
     }
 
     public List<CaseComparison> newFailures() {
@@ -35,5 +73,18 @@ public record ComparisonResult(
 
     public List<CaseComparison> recovered() {
         return cases.stream().filter(c -> c.regression() == CaseRegression.RECOVERED).toList();
+    }
+
+    private static int count(List<CaseComparison> cases, CaseRegression want) {
+        if (cases == null) {
+            return 0;
+        }
+        int n = 0;
+        for (CaseComparison c : cases) {
+            if (c.regression() == want) {
+                n++;
+            }
+        }
+        return n;
     }
 }

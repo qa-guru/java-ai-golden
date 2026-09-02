@@ -10,5 +10,6 @@
 8. **Grader test** — add a `ContractAssertionsTest` (or `ContractGraderEdgeTest`) row that fails on the bug you care about (polite refuse without `Отказ.`, `@Step` on `*Tests`, …).
 9. **Retriever** — if not refuse, set `expect.rag` to the actual `LexicalRetriever.retrieve(prompt)` set (2–4 ids). `RetrieverTest` will enforce it.
 10. **Bump dataset version** — [dataset-versioning.md](dataset-versioning.md).
+11. Do **not** add a case to holdout in order to tune the grader. Holdout is final evaluation only.
 
 Do not add a case whose only purpose is to make a dashboard look greener.

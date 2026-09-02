@@ -25,7 +25,8 @@ repositories {
 def ollamaProps = [
         'live', 'model', 'judgeModel', 'judge', 'ollamaHost', 'writeFixtures', 'red',
         'repetitions', 'mode', 'outputDir', 'baseline', 'gate', 'evalConfig', 'artifacts',
-        'provider', 'openaiBaseUrl', 'openaiApiKey', 'saveBaseline'
+        'provider', 'openaiBaseUrl', 'openaiApiKey', 'saveBaseline',
+        'experiment', 'datasetSplit', 'judgeRepetitions'
 ]
 
 dependencies {
@@ -120,6 +121,48 @@ tasks.register('evalNightlyRegression', JavaExec) {
     workingDir = layout.projectDirectory
     args '--mode=regression', '--live', '--red', '--repetitions=5', '--artifacts=always', '--gate',
             '--baseline=baselines/nightly-generation-v1.json'
+    ollamaProps.each { key ->
+        def override = System.getProperty(key)
+        if (override != null) {
+            systemProperty key, override
+        }
+    }
+}
+
+tasks.register('evalHoldout', JavaExec) {
+    group = 'eval'
+    description = 'Deterministic eval of the holdout split (not for prompt/grader/judge tuning)'
+    classpath = evalClasspath
+    mainClass = 'eval.cli.EvalMain'
+    workingDir = layout.projectDirectory
+    args '--mode=deterministic', '--split=holdout', '--gate', '--artifacts=failure'
+}
+
+tasks.register('evalHoldoutRegression', JavaExec) {
+    group = 'eval'
+    description = 'Compare holdout fixtures to baselines/holdout-v1.json'
+    classpath = evalClasspath
+    mainClass = 'eval.cli.EvalMain'
+    workingDir = layout.projectDirectory
+    args '--mode=regression', '--split=holdout', '--gate', '--baseline=baselines/holdout-v1.json'
+}
+
+tasks.register('evalJudgeCalibration', JavaExec) {
+    group = 'eval'
+    description = 'Offline judge calibration (canned corpus). Does not affect production scores'
+    classpath = evalClasspath
+    mainClass = 'eval.cli.EvalMain'
+    workingDir = layout.projectDirectory
+    args '--calibrate-judge', '--artifacts=never'
+}
+
+tasks.register('evalJudgeCalibrationLive', JavaExec) {
+    group = 'eval'
+    description = 'Live judge calibration against labeled candidates (local Ollama; not CI)'
+    classpath = evalClasspath
+    mainClass = 'eval.cli.EvalMain'
+    workingDir = layout.projectDirectory
+    args '--calibrate-judge', '--live', '--artifacts=never'
     ollamaProps.each { key ->
         def override = System.getProperty(key)
         if (override != null) {

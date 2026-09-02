@@ -55,7 +55,7 @@ class RunComparatorTest {
     @Test
     void packVersionMismatchIsInvalid() {
         EvalRun a = run("a", "generation-v1", List.of(passing("GEN-001")));
-        EvalRun b = new EvalRun(
+        EvalRun b = EvalRun.of(
                 "b",
                 "t",
                 "model-b",
@@ -105,8 +105,12 @@ class RunComparatorTest {
                 passing("GEN-003")));
         ComparisonResult result = RunComparator.compare(baseline, candidate);
         assertTrue(result.valid());
-        assertEquals(CaseRegression.STILL_PASSING, find(result, "GEN-001"));
-        assertEquals(CaseRegression.STILL_FAILING, find(result, "GEN-002"));
+        assertEquals(1, result.unchangedPass());
+        assertEquals(1, result.unchangedFail());
+        assertEquals(1, result.regressions());
+        assertEquals(1, result.improvements());
+        assertEquals(CaseRegression.UNCHANGED_PASS, find(result, "GEN-001"));
+        assertEquals(CaseRegression.UNCHANGED_FAIL, find(result, "GEN-002"));
         assertEquals(CaseRegression.NEW_FAILURE, find(result, "GEN-014"));
         assertEquals(CaseRegression.RECOVERED, find(result, "GEN-003"));
     }
@@ -143,6 +147,147 @@ class RunComparatorTest {
     }
 
     @Test
+    void absolutePassDoesNotWaiveDeltaRegression() {
+        EvalRun baseline = run("b", "generation-v1", List.of(
+                passing("1"), passing("2"), passing("3"), passing("4"), passing("5"),
+                passing("6"), passing("7"), passing("8"), passing("9"), passing("10"),
+                passing("11"), passing("12"), passing("13"), passing("14"), passing("15"),
+                passing("16"), passing("17"), passing("18"), passing("19"), failing("20")));
+        EvalRun candidate = run("c", "generation-v1", List.of(
+                passing("1"), passing("2"), passing("3"), passing("4"), passing("5"),
+                passing("6"), passing("7"), passing("8"), passing("9"), passing("10"),
+                passing("11"), passing("12"), passing("13"), passing("14"), passing("15"),
+                passing("16"), passing("17"), passing("18"), failing("19"), failing("20")));
+        Thresholds t = new Thresholds(0.90, null, null, null, null, null, null, null, null, 0.02);
+        QualityGateResult gate = QualityGate.evaluate(candidate, t, baseline);
+        assertFalse(gate.passed());
+        assertTrue(gate.rules().stream().anyMatch(r -> "absolute".equals(r.kind()) && r.passed()));
+        assertTrue(gate.rules().stream().anyMatch(r -> "delta".equals(r.kind()) && !r.passed()));
+    }
+
+    @Test
+    void judgeMismatchIsInvalid() {
+        EvalRun a = run("a", "generation-v1", List.of(passing("1")));
+        EvalRun b = EvalRun.of(
+                "b", "t", "model-b", "other-judge", "generation-v1", "pack-v1", "abc",
+                new RunConfiguration("LIVE", "model-b", "other-judge", true, 1, false, "FAILURE", "build", "ollama"),
+                1, 1, 0, 0, 0, 1, 1, 0, 0, a.metrics(), a.cases(), 10, null);
+        EvalRun aLive = EvalRun.of(
+                "a", "t", "model-a", "judge-a", "generation-v1", "pack-v1", "abc",
+                new RunConfiguration("LIVE", "model-a", "judge-a", true, 1, false, "FAILURE", "build", "ollama"),
+                1, 1, 0, 0, 0, 1, 1, 0, 0, a.metrics(), a.cases(), 10, null);
+        ComparisonResult result = RunComparator.compare(aLive, b);
+        assertFalse(result.valid());
+        assertTrue(result.invalidReason().contains("judgeModel"));
+    }
+
+    @Test
+    void datasetHashMismatchIsInvalid() {
+        EvalRun a = run("a", "generation-v1", List.of(passing("1")));
+        EvalRun hashedA = new EvalRun(
+                a.runId(), a.timestamp(), a.model(), a.judgeModel(), a.datasetVersion(), a.packDatasetVersion(),
+                "aaa", a.gitCommit(), a.experimentId(), a.configFingerprint(), a.configuration(),
+                a.casesTotal(), a.casesPassed(), a.casesFailed(), a.casesSkipped(), a.casesError(),
+                a.attemptsTotal(), a.attemptsPassed(), a.attemptsFailed(), a.attemptsSkipped(), a.attemptsError(),
+                a.metrics(), a.cases(), a.durationMs(), a.qualityGate());
+        EvalRun hashedB = new EvalRun(
+                "b", a.timestamp(), a.model(), a.judgeModel(), a.datasetVersion(), a.packDatasetVersion(),
+                "bbb", a.gitCommit(), a.experimentId(), a.configFingerprint(), a.configuration(),
+                a.casesTotal(), a.casesPassed(), a.casesFailed(), a.casesSkipped(), a.casesError(),
+                a.attemptsTotal(), a.attemptsPassed(), a.attemptsFailed(), a.attemptsSkipped(), a.attemptsError(),
+                a.metrics(), a.cases(), a.durationMs(), a.qualityGate());
+        ComparisonResult result = RunComparator.compare(hashedA, hashedB);
+        assertFalse(result.valid());
+        assertTrue(result.invalidReason().contains("datasetHash"));
+    }
+
+    @Test
+    void skippedVersusSkippedIsNotUnchangedFail() {
+        CaseResult skip = new CaseResult(
+                "red-1",
+                EvalStatus.SKIPPED,
+                Set.of(CaseKind.GENERATION),
+                List.of(AttemptResult.skipped(1, "red")),
+                null,
+                null,
+                eval.domain.RetrievalResult.notApplicable(),
+                Rate.empty(),
+                List.of(),
+                0,
+                Map.of());
+        EvalRun a = run("a", "generation-v1", List.of(passing("ok"), skip));
+        ComparisonResult result = RunComparator.compare(a, a);
+        assertTrue(result.valid());
+        assertEquals(1, result.unchangedPass());
+        assertEquals(0, result.unchangedFail());
+        assertEquals(CaseRegression.UNCHANGED_SKIPPED, find(result, "red-1"));
+    }
+
+    @Test
+    void identicalCandidateHasNoRegression() {
+        EvalRun a = run("a", "generation-v1", List.of(passing("1"), failing("2")));
+        ComparisonResult result = RunComparator.compare(a, a);
+        assertTrue(result.valid());
+        assertEquals(0, result.regressions());
+        assertEquals(0, result.improvements());
+        assertEquals(1, result.unchangedPass());
+        assertEquals(1, result.unchangedFail());
+    }
+
+    @Test
+    void emptyDatasetIsNotOneHundredPercent() {
+        EvalRun empty = run("e", "generation-v1", List.of());
+        QualityGateResult gate = QualityGate.evaluate(empty, Thresholds.deterministicStrict(), null);
+        assertFalse(gate.passed());
+        assertTrue(!empty.metrics().overallPassRate().defined());
+    }
+
+    @Test
+    void fixtureVsLiveIsInvalid() {
+        EvalRun fixture = run("a", "generation-v1", List.of(passing("1")));
+        EvalRun live = EvalRun.of(
+                "b", "t", "m", null, "generation-v1", "pack-v1", "abc",
+                new RunConfiguration("LIVE", "m", null, false, 1, false, "FAILURE", "build", "ollama"),
+                1, 1, 0, 0, 0, 1, 1, 0, 0, fixture.metrics(), fixture.cases(), 10, null);
+        ComparisonResult result = RunComparator.compare(fixture, live);
+        assertFalse(result.valid());
+        assertTrue(result.invalidReason().contains("mode"));
+    }
+
+    @Test
+    void criticalNewFailureFailsGateEvenWhenOverallUnchanged() {
+        CaseResult baseFail = failing("GEN-A");
+        CaseResult basePass = passing("GEN-014");
+        CaseResult candPass = passing("GEN-A");
+        CaseResult candCrit = caseResult(
+                "GEN-014",
+                EvalStatus.FAIL,
+                Set.of(CaseKind.GENERATION, CaseKind.HALLUCINATION),
+                new eval.domain.ContractResult(
+                        false,
+                        List.of("cited missing API"),
+                        false,
+                        false,
+                        false,
+                        false,
+                        false,
+                        false,
+                        true,
+                        List.of(new eval.domain.Violation(
+                                "GEN-014",
+                                eval.domain.ViolationCategory.HALLUCINATION,
+                                eval.domain.ViolationSeverity.CRITICAL,
+                                "ContractGrader",
+                                "cited missing API"))),
+                null);
+        EvalRun baseline = run("b", "generation-v1", List.of(baseFail, basePass));
+        EvalRun candidate = run("c", "generation-v1", List.of(candPass, candCrit));
+        QualityGateResult gate = QualityGate.evaluate(candidate, Thresholds.liveDelta(), baseline);
+        assertFalse(gate.passed());
+        assertTrue(gate.rules().stream().anyMatch(r -> r.name().contains("criticalNewFailure")));
+    }
+
+    @Test
     void deltaRegressionOfThreePointsFailsWhenAllowedIsTwo() {
         EvalRun baseline = run("b", "generation-v1", List.of(
                 passing("1"), passing("2"), passing("3"), passing("4"), passing("5"),
@@ -173,7 +318,7 @@ class RunComparatorTest {
         EvalMetrics metrics = MetricsAggregator.aggregate(cases, null);
         int passed = (int) cases.stream().filter(c -> c.status() == EvalStatus.PASS).count();
         int failed = (int) cases.stream().filter(c -> c.status() == EvalStatus.FAIL).count();
-        return new EvalRun(
+        return EvalRun.of(
                 id,
                 "t",
                 "model-" + id,

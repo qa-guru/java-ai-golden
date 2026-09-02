@@ -2,10 +2,12 @@ package eval.cli;
 
 import eval.comparison.RunComparator;
 import eval.domain.ComparisonResult;
-import eval.domain.EvalMode;
 import eval.domain.EvalRun;
 import eval.execution.EvalConfig;
 import eval.execution.EvalExecutor;
+import eval.generation.JudgeCalibration;
+import eval.provider.EvalInfrastructureException;
+import eval.provider.ModelRunners;
 import eval.reporting.ArtifactWriter;
 import eval.reporting.ConsoleReporter;
 import eval.reporting.MarkdownReporter;
@@ -27,6 +29,9 @@ public final class EvalMain {
             System.out.println(help());
             return ExitCode.SUCCESS;
         }
+        if (has(args, "--calibrate-judge")) {
+            return runCalibration(args);
+        }
         EvalConfig config;
         try {
             config = EvalConfig.resolve(args);
@@ -42,6 +47,40 @@ public final class EvalMain {
             };
         } catch (RuntimeException e) {
             System.err.println("EVAL failed: " + e.getMessage());
+            e.printStackTrace(System.err);
+            return ExitCode.USAGE;
+        }
+    }
+
+    static int runCalibration(String[] args) {
+        EvalConfig config;
+        try {
+            config = EvalConfig.resolve(args);
+        } catch (RuntimeException e) {
+            System.err.println("USAGE: " + e.getMessage());
+            return ExitCode.USAGE;
+        }
+        try {
+            var rows = JudgeCalibration.load(JudgeCalibration.defaultFile());
+            boolean live = has(args, "--live") || config.usesModel();
+            JudgeCalibration.Report report = live
+                    ? JudgeCalibration.evaluateLive(rows, ModelRunners.create(config), config.judgeModel())
+                    : JudgeCalibration.evaluate(rows);
+            Path dir = config.outputDir().resolve("calibration");
+            ReportIo.writeJson(dir.resolve("report.json"), report);
+            Files.writeString(dir.resolve("report.md"), JudgeCalibration.render(report));
+            System.out.print(JudgeCalibration.render(report));
+            System.out.println("Wrote " + dir.toAbsolutePath());
+            return ExitCode.SUCCESS;
+        } catch (EvalInfrastructureException e) {
+            System.err.println("CALIBRATION infra: " + e.kind() + " " + e.getMessage());
+            return ExitCode.INFRASTRUCTURE_FAILURE;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.err.println("CALIBRATION interrupted");
+            return ExitCode.INFRASTRUCTURE_FAILURE;
+        } catch (Exception e) {
+            System.err.println("CALIBRATION failed: " + e.getMessage());
             e.printStackTrace(System.err);
             return ExitCode.USAGE;
         }
@@ -119,7 +158,15 @@ public final class EvalMain {
         if (comparison != null && !comparison.valid()) {
             return ExitCode.COMPARISON_INVALID;
         }
-        if (run.attemptsError() > 0 && run.attemptsPassed() + run.attemptsFailed() == 0) {
+        if (run.casesTotal() == 0) {
+            System.err.println("EVAL: empty dataset");
+            return ExitCode.QUALITY_GATE_FAILED;
+        }
+        if (run.hasNoQualityAttempts() && run.attemptsError() == 0) {
+            System.err.println("EVAL: no quality attempts (all skipped or empty) — not a pass");
+            return ExitCode.QUALITY_GATE_FAILED;
+        }
+        if (run.attemptsError() > 0 && run.qualityAttempts() == 0) {
             return ExitCode.INFRASTRUCTURE_FAILURE;
         }
         if (run.casesError() > 0 && run.casesPassed() + run.casesFailed() == 0) {
@@ -173,6 +220,10 @@ public final class EvalMain {
                   --provider=ollama|openai
                   --openaiBaseUrl=URL
                   --openaiApiKey=KEY
+                  --experiment=ID
+                  --split=development|holdout
+                  --judge-repetitions=N
+                  --calibrate-judge [--live]
                   --config=eval.json
 
                 Exit codes:

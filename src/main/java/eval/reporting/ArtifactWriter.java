@@ -31,6 +31,7 @@ public final class ArtifactWriter {
         ReportIo.writeJson(dir.resolve("run.json"), slim);
         ReportIo.writeJson(dir.resolve("summary.json"), SummaryView.of(run));
         writeString(dir.resolve("eval-report.md"), MarkdownReporter.render(run, null));
+        EvalHistory.append(config.outputDir().resolve("history.jsonl"), slim);
         for (CaseResult cse : run.cases()) {
             boolean failed = cse.status() == EvalStatus.FAIL || cse.status() == EvalStatus.ERROR;
             boolean writeCase = config.artifactMode() == ArtifactMode.ALWAYS
@@ -86,7 +87,8 @@ public final class ArtifactWriter {
                         a.tokens(),
                         a.durationMs(),
                         a.errorKind(),
-                        a.errorMessage()));
+                        a.errorMessage(),
+                        a.judgeStability()));
             }
             slimCases.add(new CaseResult(
                     cse.caseId(),
@@ -104,7 +106,9 @@ public final class ArtifactWriter {
                     cse.successRate(),
                     cse.errors(),
                     cse.durationMs(),
-                    cse.metadata()));
+                    cse.metadata(),
+                    cse.taxonomy(),
+                    cse.judgeStability()));
         }
         return new EvalRun(
                 run.runId(),
@@ -113,7 +117,10 @@ public final class ArtifactWriter {
                 run.judgeModel(),
                 run.datasetVersion(),
                 run.packDatasetVersion(),
+                run.datasetHash(),
                 run.gitCommit(),
+                run.experimentId(),
+                run.configFingerprint(),
                 run.configuration(),
                 run.casesTotal(),
                 run.casesPassed(),
@@ -123,6 +130,7 @@ public final class ArtifactWriter {
                 run.attemptsTotal(),
                 run.attemptsPassed(),
                 run.attemptsFailed(),
+                run.attemptsSkipped(),
                 run.attemptsError(),
                 run.metrics(),
                 slimCases,

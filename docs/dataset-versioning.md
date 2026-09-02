@@ -1,12 +1,13 @@
 # Dataset versioning
 
-Eval results **must** carry `datasetVersion` and `packDatasetVersion`. You cannot conclude model B is better than A if A ran on `generation-v1` and B on `generation-v3`.
+Eval results **must** carry `datasetVersion`, `datasetHash`, and `packDatasetVersion`. You cannot conclude model B is better than A if A ran on `generation-v1` and B on `generation-v3`, or if the JSONL changed without a version bump (`datasetHash` mismatch → `COMPARISON INVALID`).
 
 ## Current
 
 | Dataset | Version file | Id |
 |---|---|---|
-| Generation goldens | `src/test/java/eval/generation/dataset.json` | `generation-v1` |
+| Generation goldens (development) | `src/test/java/eval/generation/dataset.json` | `generation-v1` |
+| Holdout (final only) | `src/test/java/eval/generation/holdout/dataset.json` | `holdout-v1` |
 | Pack diet | `src/test/resources/pack/dataset.json` | `pack-v1` |
 
 Pack-only wording that does not change retrieve sets or contracts: bump **`pack-v1` only**. Anything that changes `expect.rag`, `must_not`, refuse behaviour, or case ids: bump **`generation-v1`** (and usually pack if the diet moved).
@@ -18,6 +19,7 @@ Live snapshots (same `generation-v1`, not interchangeable):
 | File | Protocol |
 |---|---|
 | `baselines/generation-v1.json` | fixtures, 1 attempt, no LLM |
+| `baselines/holdout-v1.json` | holdout fixtures, 1 attempt, no LLM |
 | `baselines/live-generation-v1.json` | model, skip red, 1 attempt |
 | `baselines/nightly-generation-v1.json` | model, `--red`, 5 attempts |
 

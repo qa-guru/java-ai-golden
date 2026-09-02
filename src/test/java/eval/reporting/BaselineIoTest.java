@@ -16,6 +16,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class BaselineIoTest {
 
     @Test
+    void committedHoldoutBaselineIsReadable() {
+        EvalRun run = ReportIo.readRun(Path.of("baselines/holdout-v1.json"));
+        assertEquals("holdout-v1", run.datasetVersion());
+        assertEquals("pack-v1", run.packDatasetVersion());
+        assertEquals(8, run.casesTotal());
+        assertEquals(8, run.casesPassed());
+        assertEquals("DETERMINISTIC", run.configuration().mode());
+        assertEquals("holdout", run.configuration().datasetSplit());
+        assertEquals(1.0, run.metrics().overallPassRate().value(), 1e-12);
+        assertTrue(run.datasetHash() != null && !run.datasetHash().isBlank());
+    }
+
+    @Test
     void committedDeterministicBaselineIsReadable() {
         EvalRun run = ReportIo.readRun(Path.of("baselines/generation-v1.json"));
         assertEquals("generation-v1", run.datasetVersion());

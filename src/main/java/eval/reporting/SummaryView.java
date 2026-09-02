@@ -11,7 +11,10 @@ public record SummaryView(
         String model,
         String judgeModel,
         String datasetVersion,
+        String datasetHash,
         String gitCommit,
+        String experimentId,
+        String configFingerprint,
         int casesTotal,
         int casesPassed,
         int casesFailed,
@@ -20,6 +23,7 @@ public record SummaryView(
         int attemptsTotal,
         int attemptsPassed,
         int attemptsFailed,
+        int attemptsSkipped,
         int attemptsError,
         EvalMetrics metrics,
         QualityGateResult qualityGate,
@@ -32,7 +36,10 @@ public record SummaryView(
                 run.model(),
                 run.judgeModel(),
                 run.datasetVersion(),
+                run.datasetHash(),
                 run.gitCommit(),
+                run.experimentId(),
+                run.configFingerprint(),
                 run.casesTotal(),
                 run.casesPassed(),
                 run.casesFailed(),
@@ -41,6 +48,7 @@ public record SummaryView(
                 run.attemptsTotal(),
                 run.attemptsPassed(),
                 run.attemptsFailed(),
+                run.attemptsSkipped(),
                 run.attemptsError(),
                 run.metrics(),
                 run.qualityGate(),
@@ -51,6 +59,6 @@ public record SummaryView(
         if (rate == null || !rate.defined()) {
             return "n/a";
         }
-        return rate.asPercent() + " (" + rate.asFraction() + ")";
+        return rate.asPercentWithCi();
     }
 }

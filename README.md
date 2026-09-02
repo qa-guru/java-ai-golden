@@ -4,7 +4,13 @@ Evaluation mill for **QA.Guru AI agents that write Java autotests**, not for the
 
 Repository: [qa-guru/java-ai-golden](https://github.com/qa-guru/java-ai-golden).
 
-This repo is a **file-based evaluation system**: golden dataset → execution → deterministic grading → optional LLM judge → metrics → repeated runs → baseline comparison → regression / quality gate → JSON+Markdown reports.
+This repo is a **file-based evaluation system**:
+
+```
+Dataset → Run → Results → Metrics → Baseline → Comparison → Regression → Gate
+```
+
+Semantics SSOT: [docs/evaluation-methodology.md](docs/evaluation-methodology.md). Mill walkthrough (camera, ~3 min): [START.md](START.md).
 
 It is not a matrix cell, not a takeaway `main`, and not an MCP server.
 
@@ -27,13 +33,13 @@ One **EvalRun** is one execution of the pipeline. Identity:
 | Field | Meaning |
 |---|---|
 | `runId` | Timestamp id, e.g. `2026-09-02T14-32-11` |
-| `model` | Generator model (unused in deterministic mode) |
-| `judgeModel` | Judge model, or off |
-| `datasetVersion` | e.g. `generation-v1` |
+| `model` / `judgeModel` | Generator and judge (or off) |
+| `datasetVersion` / `datasetHash` | Manifest version + order-independent SHA-256 |
+| `configFingerprint` | Stable hash of model+judge+dataset+protocol (not runId/paths) |
+| `experimentId` | Optional evaluation target label (`--experiment=prompt-v13`) |
 | `gitCommit` | Short SHA |
-| `configuration` | mode, repetitions, red flag, artifacts |
-| cases / attempts | totals, passed, failed, skipped, error |
-| `metrics` | component rates, never a single unexplained score |
+| cases / attempts | passed, failed, skipped, error (skipped ≠ pass, error ≠ fail) |
+| `metrics` | attempt-weighted rates, slices, stability, Wilson 95% CI |
 | `durationMs` | wall time |
 
 Stored under `build/eval/<runId>/` as `run.json`, `summary.json`, `eval-report.md`, plus per-case artifacts on failure (or `--artifacts=always`).
@@ -83,6 +89,7 @@ Existing mill JUnit tests (`GenerationContractTest`, `LiveGenerationContractTest
 - Version: `src/test/java/eval/generation/dataset.json` → currently **`generation-v1`**
 - Pack version: `src/test/resources/pack/dataset.json` → **`pack-v1`** (EvalRun.packDatasetVersion)
 - **Stable case id** = JSONL `id` (e.g. `login-wrong-password-e2e`). Not the line index. Prefixes like `GEN-001` are a naming option for *new* datasets; this mill keeps story ids because fixtures, START, and lab 36 already use them.
+- **Holdout** (not for tuning): `src/test/java/eval/generation/holdout/` → `holdout-v1`. `./gradlew evalHoldout`
 - Fixtures: `src/test/java/eval/generation/fixtures/<id>.out.md` — CI without LLM
 - Rules for changing the dataset: [docs/dataset-versioning.md](docs/dataset-versioning.md)
 - How to add a case: [docs/adding-a-case.md](docs/adding-a-case.md)
@@ -141,7 +148,9 @@ Computed as **hits / total attempts** (or cases for retrieval). Not the unweight
 
 `weightedScore` is **secondary**, equal weights, documented formula in the report, dropped components with `total=0`, **never** the quality gate by itself. Config: `eval.json` → `weights`.
 
-A deterministic 100% overall means **fixtures still match the contract**, not “qwen 7b is production-ready”.
+Computed as **hits / total quality attempts** (PASS+FAIL). SKIPPED and ERROR are excluded. Coverage is executed/cases.
+
+A deterministic 100% overall means **fixtures still match the contract**, not “qwen 7b is production-ready”. n=8 at 100% still has a wide Wilson 95% CI — see the report.
 
 ## Repeated runs
 
@@ -165,7 +174,9 @@ Same dataset, same graders, same attempt count. Table: Overall / Contract / RAG 
 ./gradlew evalRegression
 ```
 
-Requires matching `datasetVersion`. Per-case: `NEW_FAILURE` | `RECOVERED` | `STILL_FAILING` | `STILL_PASSING`. Metric deltas: `IMPROVED` | `REGRESSED` | `UNCHANGED`.
+Requires matching `datasetVersion` (and `datasetHash` when both runs have one). Per-case: `NEW_FAILURE` | `RECOVERED` | `UNCHANGED_PASS` | `UNCHANGED_FAIL`. Metric deltas: `IMPROVED` | `REGRESSED` | `UNCHANGED`.
+
+Paired summary: unchanged pass/fail, regressions, improvements. McNemar is informational, never the sole gate.
 
 Committed baseline `baselines/generation-v1.json` is the **deterministic fixture** snapshot.
 
@@ -219,15 +230,20 @@ If every attempt is `ERROR` (Ollama down), the process does **not** report 0% AI
 
 Statuses: `PASS` | `FAIL` | `SKIPPED` (red rows without `--red`) | `ERROR` (infra).
 
+`SKIPPED != PASS`. `ERROR != FAIL`. All skipped or empty dataset → exit 2, not 100%.
+
 ## CI
 
 GitHub-hosted `ubuntu-latest` has **no Ollama**. Live or nightly on that runner is always `INFRASTRUCTURE_FAILURE`, not a model score. This repo does **not** install Ollama in Actions and does **not** expose live/nightly as `workflow_dispatch`.
 
 | Where | Command | LLM |
 |---|---|---|
-| GitHub Actions ([`ci.yml`](.github/workflows/ci.yml)) | `./gradlew test evalDeterministic evalRegression` | no |
-| Local (Ollama + `qwen2.5-coder:7b`) | `./gradlew evalLive` then `evalLiveRegression` | yes, skip red |
-| Local nightly | `./gradlew evalNightlyRegression` | yes, red + 5 reps |
+| PR ([`ci.yml`](.github/workflows/ci.yml)) | `./gradlew test evalDeterministic evalRegression evalHoldout evalHoldoutRegression evalJudgeCalibration` | no |
+| MAIN live smoke (local Ollama) | `./gradlew evalLive` then `evalLiveRegression` | yes, skip red |
+| NIGHTLY (local) | `./gradlew evalNightlyRegression` | yes, red + 5 reps |
+| Holdout (final, not tuning) | `./gradlew evalHoldout` then `evalHoldoutRegression` | no |
+| Judge calibration (canned) | `./gradlew evalJudgeCalibration` | no |
+| Judge calibration (live, local) | `./gradlew evalJudgeCalibrationLive` | yes |
 
 A self-hosted runner with Ollama already on `localhost:11434` can run the local commands. Do not add that job until such a runner exists.
 
@@ -239,12 +255,15 @@ A self-hosted runner with Ollama already on `localhost:11434` can run the local 
 | `run.json` | Full run without raw model blobs |
 | `comparison.json` | Baseline vs candidate |
 | `eval-report.md` | Humans |
+| `history.jsonl` | Append-only run log under `build/eval/` plus committed `baselines/history.jsonl` |
 | `cases/<id>/output.md` | Raw generation (failures by default) |
 | `cases/<id>/judge.md` | Raw judge |
 
 Example: [docs/examples/eval-report.md](docs/examples/eval-report.md).
 
 Latency: min / avg / median / p95 / max per run (attempt samples). Tokens: `prompt_eval_count` / `eval_count` from Ollama when present. **Cost is null** unless a provider actually returns a price. Core does not invent USD.
+
+Judge calibration (does not affect production scores or the quality gate): canned `./gradlew evalJudgeCalibration`; live `./gradlew evalJudgeCalibrationLive`. Corpus: `src/test/java/eval/generation/calibration/judge-calibration.jsonl` (REJECT rows carry a bad `candidate`). Judge consistency: `--judge-repetitions=N` on live.
 
 ## How to add a grader
 
@@ -272,6 +291,10 @@ Live (local Ollama, default `qwen2.5-coder:7b`):
 ./gradlew test -Dlive=true -DincludeTags=live          # mill JUnit
 ./gradlew evalLive                                      # pipeline, skip red
 ./gradlew evalLive -Dred=true                           # include mixed-layer / hallucinate-*
+./gradlew evalHoldout                    # holdout-v1 fixtures; do not tune against this
+./gradlew evalHoldoutRegression          # vs baselines/holdout-v1.json
+./gradlew evalJudgeCalibration           # canned judge confusion matrix; not a mill gate
+./gradlew evalJudgeCalibrationLive       # live judge on labeled candidates (local Ollama)
 ./gradlew evalNightly                                   # 5 reps + red, no gate (capture)
 ./gradlew evalNightlyRegression                         # delta vs baselines/nightly-generation-v1.json
 ./gradlew evalLiveRegression                            # delta vs baselines/live-generation-v1.json
@@ -285,7 +308,7 @@ Mill camera flags are unchanged: `-Dlive=true -DincludeTags=live`, `-Dred=true`,
 
 ## Cheap PR eval vs full eval
 
-**PR:** `./gradlew test evalDeterministic evalRegression` — fixtures, contract, pack, retriever, grader tests, quality gate vs committed deterministic baseline.
+**PR:** `./gradlew test evalDeterministic evalRegression evalHoldout evalHoldoutRegression evalJudgeCalibration` — fixtures, contract, pack, retriever, grader tests, quality gate vs committed deterministic and holdout baselines, canned judge calibration.
 
 **Limited live:** `./gradlew evalLive` — five non-red goldens, one attempt, judge on. Then `evalLiveRegression` against the committed live baseline.
 

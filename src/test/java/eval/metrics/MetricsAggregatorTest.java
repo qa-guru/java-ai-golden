@@ -44,6 +44,69 @@ class MetricsAggregatorTest {
     }
 
     @Test
+    void skippedAttemptsAreNotPasses() {
+        AttemptResult skip = AttemptResult.skipped(1, "red");
+        CaseResult skipped = new CaseResult(
+                "GEN-SKIP",
+                EvalStatus.SKIPPED,
+                Set.of(CaseKind.GENERATION),
+                List.of(skip),
+                null,
+                null,
+                eval.domain.RetrievalResult.notApplicable(),
+                Rate.empty(),
+                List.of(),
+                0,
+                Map.of());
+        CaseResult passed = caseWithAttempts("GEN-OK", Set.of(CaseKind.GENERATION), List.of(pass(1)));
+        EvalMetrics metrics = MetricsAggregator.aggregate(List.of(passed, skipped), MetricWeights.equal());
+        assertEquals(1, metrics.overallPassRate().hits());
+        assertEquals(1, metrics.overallPassRate().total());
+        assertEquals(1.0, metrics.overallPassRate().value(), 1e-12);
+    }
+
+    @Test
+    void emptyCasesDoNotYieldOneHundredPercent() {
+        EvalMetrics metrics = MetricsAggregator.aggregate(List.of(), MetricWeights.equal());
+        assertTrue(!metrics.overallPassRate().defined());
+    }
+
+    @Test
+    void threeCasesFiveRepetitionsAreFifteenAttempts() {
+        List<CaseResult> cases = List.of(
+                caseWithAttempts("GEN-001", Set.of(CaseKind.GENERATION), five(5)),
+                caseWithAttempts("GEN-002", Set.of(CaseKind.GENERATION), List.of(
+                        pass(1), pass(2), pass(3), fail(4), fail(5))),
+                caseWithAttempts("GEN-003", Set.of(CaseKind.GENERATION), five(5)));
+        EvalMetrics metrics = MetricsAggregator.aggregate(cases, MetricWeights.equal());
+        assertEquals(13, metrics.overallPassRate().hits());
+        assertEquals(15, metrics.overallPassRate().total());
+        assertEquals(13.0 / 15.0, metrics.overallPassRate().value(), 1e-12);
+        assertEquals(1, metrics.unstableCaseRate().hits());
+        assertEquals(3, metrics.unstableCaseRate().total());
+        assertTrue(metrics.slices().containsKey("generation"));
+        assertEquals(13, metrics.slices().get("generation").hits());
+    }
+
+    @Test
+    void errorIsNotAPassOrAQualityFail() {
+        CaseResult cse = caseWithAttempts(
+                "GEN-ERR",
+                Set.of(CaseKind.GENERATION),
+                List.of(AttemptResult.error(1, "MODEL_UNAVAILABLE", "down", 5)));
+        EvalMetrics metrics = MetricsAggregator.aggregate(List.of(cse), MetricWeights.equal());
+        assertTrue(!metrics.overallPassRate().defined());
+    }
+
+    private static List<AttemptResult> five(int passed) {
+        List<AttemptResult> out = new java.util.ArrayList<>();
+        for (int i = 1; i <= 5; i++) {
+            out.add(i <= passed ? pass(i) : fail(i));
+        }
+        return out;
+    }
+
+    @Test
     void errorAttemptsAreExcludedFromPassRate() {
         CaseResult cse = caseWithAttempts(
                 "GEN-003",

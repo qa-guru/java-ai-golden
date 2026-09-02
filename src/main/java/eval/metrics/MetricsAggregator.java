@@ -1,7 +1,6 @@
 package eval.metrics;
 
 import eval.domain.AttemptResult;
-import eval.domain.CaseFlags;
 import eval.domain.CaseKind;
 import eval.domain.CaseResult;
 import eval.domain.ContractResult;
@@ -16,11 +15,14 @@ import eval.domain.RetrievalResult;
 import eval.domain.TokenUsage;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * Aggregation is {@code totalHits / totalAttempts}, never the unweighted mean of per-case rates.
+ * Slice keys come from case {@link eval.domain.CaseKind} metadata — the engine does not hardcode a category list.
  */
 public final class MetricsAggregator {
 
@@ -46,15 +48,22 @@ public final class MetricsAggregator {
         int layerTotal = 0;
         int ragPass = 0;
         int ragTotal = 0;
+        int unstable = 0;
+        int stabilityDenom = 0;
         List<Long> latencies = new ArrayList<>();
         TokenUsage tokens = TokenUsage.unknown();
+        Map<String, int[]> sliceAcc = new LinkedHashMap<>();
+
+        if (cases == null) {
+            cases = List.of();
+        }
 
         for (CaseResult cse : cases) {
-            boolean negative = CaseFlags.has(cse, CaseKind.NEGATIVE);
-            boolean hallucination = CaseFlags.has(cse, CaseKind.HALLUCINATION);
-            boolean refusal = CaseFlags.has(cse, CaseKind.REFUSAL);
-            boolean layer = CaseFlags.has(cse, CaseKind.LAYER);
-            boolean rag = CaseFlags.has(cse, CaseKind.RAG);
+            boolean negative = hasKind(cse, CaseKind.NEGATIVE);
+            boolean hallucination = hasKind(cse, CaseKind.HALLUCINATION);
+            boolean refusal = hasKind(cse, CaseKind.REFUSAL);
+            boolean layer = hasKind(cse, CaseKind.LAYER);
+            boolean rag = hasKind(cse, CaseKind.RAG);
 
             if (cse.retrieval() != null && cse.retrieval().applicable()) {
                 retrievalTotal++;
@@ -63,6 +72,15 @@ public final class MetricsAggregator {
                 }
             }
 
+            if (cse.successRate() != null && cse.successRate().total() >= 2) {
+                stabilityDenom++;
+                if (cse.unstable()) {
+                    unstable++;
+                }
+            }
+
+            int caseQuality = 0;
+            int casePass = 0;
             for (AttemptResult attempt : cse.attempts()) {
                 if (attempt.durationMs() > 0) {
                     latencies.add(attempt.durationMs());
@@ -71,9 +89,11 @@ public final class MetricsAggregator {
                 if (!attempt.quality()) {
                     continue;
                 }
+                caseQuality++;
                 overallTotal++;
                 if (attempt.status() == EvalStatus.PASS) {
                     overallPass++;
+                    casePass++;
                 }
                 ContractResult contract = attempt.contract();
                 if (contract != null) {
@@ -120,6 +140,14 @@ public final class MetricsAggregator {
                     }
                 }
             }
+            if (caseQuality > 0 && cse.kinds() != null) {
+                for (CaseKind kind : cse.kinds()) {
+                    String key = kind.name().toLowerCase(Locale.ROOT);
+                    int[] acc = sliceAcc.computeIfAbsent(key, k -> new int[2]);
+                    acc[0] += casePass;
+                    acc[1] += caseQuality;
+                }
+            }
         }
 
         Rate overall = Rate.of(overallPass, overallTotal);
@@ -131,6 +159,12 @@ public final class MetricsAggregator {
         Rate refusal = Rate.of(refusalPass, refusalTotal);
         Rate layerRate = Rate.of(layerPass, layerTotal);
         Rate ragRate = Rate.of(ragPass, ragTotal);
+        Rate unstableRate = Rate.of(unstable, stabilityDenom);
+
+        Map<String, Rate> slices = new LinkedHashMap<>();
+        for (Map.Entry<String, int[]> e : sliceAcc.entrySet()) {
+            slices.put(e.getKey(), Rate.of(e.getValue()[0], e.getValue()[1]));
+        }
 
         Weighted weighted = weightedScore(
                 weights == null ? MetricWeights.equal() : weights,
@@ -149,7 +183,13 @@ public final class MetricsAggregator {
                 weighted.score,
                 weighted.formula,
                 LatencyStats.of(latencies),
-                tokens);
+                tokens,
+                unstableRate,
+                slices);
+    }
+
+    private static boolean hasKind(CaseResult cse, CaseKind kind) {
+        return cse.kinds() != null && cse.kinds().contains(kind);
     }
 
     static Weighted weightedScore(

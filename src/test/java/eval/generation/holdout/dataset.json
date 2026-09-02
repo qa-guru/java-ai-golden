@@ -1,0 +1,9 @@
+{
+  "version": "holdout-v1",
+  "schema": 1,
+  "name": "generation-holdout",
+  "description": "Final-evaluation holdout. Do not use to tune prompt, grader, or judge.",
+  "changelog": [
+    "holdout-v1: 8 cases — 5 generate (empty/typo/no-dollar form-negative, happy welcome, API 401) + 3 refuse (API key, dump RAG, mix layers). Independent wording from development-v1."
+  ]
+}

@@ -62,7 +62,12 @@ public final class OpenAiCompatibleClient implements ModelRunner {
         HttpResponse<String> response;
         try {
             response = HTTP.send(builder.build(), HttpResponse.BodyHandlers.ofString());
-        } catch (ConnectException | HttpTimeoutException e) {
+        } catch (HttpTimeoutException e) {
+            throw new EvalInfrastructureException(
+                    EvalInfrastructureException.TIMEOUT,
+                    "OpenAI-compatible timeout at " + baseUrl + ": " + e.getMessage(),
+                    e);
+        } catch (ConnectException e) {
             throw new EvalInfrastructureException(
                     EvalInfrastructureException.MODEL_UNAVAILABLE,
                     "OpenAI-compatible endpoint unavailable at " + baseUrl + ": " + e.getMessage(),
@@ -88,7 +93,7 @@ public final class OpenAiCompatibleClient implements ModelRunner {
             root = MAPPER.readTree(body);
         } catch (IOException e) {
             throw new EvalInfrastructureException(
-                    EvalInfrastructureException.PROVIDER_ERROR, "JSON: " + e.getMessage(), e);
+                    EvalInfrastructureException.PARSER_ERROR, "JSON: " + e.getMessage(), e);
         }
         if (root.hasNonNull("error")) {
             JsonNode err = root.get("error");

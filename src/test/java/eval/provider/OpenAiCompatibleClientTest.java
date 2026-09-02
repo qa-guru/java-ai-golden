@@ -42,7 +42,7 @@ class OpenAiCompatibleClientTest {
         EvalInfrastructureException err = assertThrows(
                 EvalInfrastructureException.class,
                 () -> OpenAiCompatibleClient.parse("{not json}", 1));
-        assertEquals(EvalInfrastructureException.PROVIDER_ERROR, err.kind());
+        assertEquals(EvalInfrastructureException.PARSER_ERROR, err.kind());
     }
 
     @Test

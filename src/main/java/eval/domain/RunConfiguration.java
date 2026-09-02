@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record RunConfiguration(
@@ -15,19 +16,47 @@ public record RunConfiguration(
         boolean includeRed,
         String artifactMode,
         String outputDir,
-        String provider
+        String provider,
+        String experimentId,
+        String datasetSplit
 ) {
+    public RunConfiguration(
+            String mode,
+            String model,
+            String judgeModel,
+            boolean judgeEnabled,
+            int repetitions,
+            boolean includeRed,
+            String artifactMode,
+            String outputDir,
+            String provider) {
+        this(
+                mode,
+                model,
+                judgeModel,
+                judgeEnabled,
+                repetitions,
+                includeRed,
+                artifactMode,
+                outputDir,
+                provider,
+                null,
+                "development");
+    }
+
     public Map<String, String> asMap() {
-        return Map.of(
-                "mode", String.valueOf(mode),
-                "model", String.valueOf(model),
-                "judgeModel", String.valueOf(judgeModel),
-                "judgeEnabled", String.valueOf(judgeEnabled),
-                "repetitions", String.valueOf(repetitions),
-                "includeRed", String.valueOf(includeRed),
-                "artifactMode", String.valueOf(artifactMode),
-                "outputDir", String.valueOf(outputDir),
-                "provider", String.valueOf(provider));
+        return Map.ofEntries(
+                Map.entry("mode", String.valueOf(mode)),
+                Map.entry("model", String.valueOf(model)),
+                Map.entry("judgeModel", String.valueOf(judgeModel)),
+                Map.entry("judgeEnabled", String.valueOf(judgeEnabled)),
+                Map.entry("repetitions", String.valueOf(repetitions)),
+                Map.entry("includeRed", String.valueOf(includeRed)),
+                Map.entry("artifactMode", String.valueOf(artifactMode)),
+                Map.entry("outputDir", String.valueOf(outputDir)),
+                Map.entry("provider", String.valueOf(provider)),
+                Map.entry("experimentId", String.valueOf(experimentId)),
+                Map.entry("datasetSplit", String.valueOf(datasetSplit)));
     }
 
     public List<String> differences(RunConfiguration other) {
@@ -37,7 +66,7 @@ public record RunConfiguration(
         java.util.ArrayList<String> out = new java.util.ArrayList<>();
         asMap().forEach((k, v) -> {
             String ov = other.asMap().get(k);
-            if (!java.util.Objects.equals(v, ov) && !"outputDir".equals(k)) {
+            if (!Objects.equals(v, ov) && !"outputDir".equals(k) && !"artifactMode".equals(k)) {
                 out.add(k + ": " + v + " vs " + ov);
             }
         });

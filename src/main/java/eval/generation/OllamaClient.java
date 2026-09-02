@@ -61,7 +61,12 @@ public final class OllamaClient implements ModelRunner {
         HttpResponse<String> response;
         try {
             response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
-        } catch (ConnectException | HttpTimeoutException e) {
+        } catch (HttpTimeoutException e) {
+            throw new EvalInfrastructureException(
+                    EvalInfrastructureException.TIMEOUT,
+                    "Ollama timeout at " + host + ": " + e.getMessage(),
+                    e);
+        } catch (ConnectException e) {
             throw new EvalInfrastructureException(
                     EvalInfrastructureException.MODEL_UNAVAILABLE,
                     "Ollama unavailable at " + host + ": " + e.getMessage(),
@@ -83,7 +88,7 @@ public final class OllamaClient implements ModelRunner {
         try {
             root = MAPPER.readTree(response.body());
         } catch (IOException e) {
-            throw new EvalInfrastructureException(EvalInfrastructureException.PROVIDER_ERROR, "Ollama JSON: " + e.getMessage(), e);
+            throw new EvalInfrastructureException(EvalInfrastructureException.PARSER_ERROR, "Ollama JSON: " + e.getMessage(), e);
         }
         if (root.hasNonNull("error")) {
             throw new EvalInfrastructureException(

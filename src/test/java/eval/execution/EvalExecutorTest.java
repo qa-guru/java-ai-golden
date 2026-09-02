@@ -42,6 +42,9 @@ class EvalExecutorTest {
         assertEquals(0, run.casesError());
         assertEquals("generation-v1", run.datasetVersion());
         assertEquals("pack-v1", run.packDatasetVersion());
+        assertTrue(run.datasetHash() != null && run.datasetHash().length() == 64);
+        assertTrue(run.configFingerprint() != null && run.configFingerprint().length() == 64);
+        assertEquals("DETERMINISTIC", run.configuration().mode());
         assertTrue(run.metrics().overallPassRate().value() > 0.99);
         assertTrue(run.metrics().retrievalPassRate().value() > 0.99);
         assertTrue(run.qualityGate() != null && run.qualityGate().passed());
@@ -101,6 +104,11 @@ class EvalExecutorTest {
         long skipped = run.cases().stream().filter(c -> c.status() == EvalStatus.SKIPPED).count();
         assertEquals(3, skipped);
         assertEquals(5, run.casesPassed());
+        assertEquals(3, run.casesSkipped());
+        assertEquals(1.0, run.metrics().overallPassRate().value(), 1e-12);
+        assertEquals(5, run.metrics().overallPassRate().total());
+        assertEquals(5, run.coverage().hits());
+        assertEquals(8, run.coverage().total());
     }
 
     @Test

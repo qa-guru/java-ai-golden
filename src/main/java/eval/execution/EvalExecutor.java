@@ -1,19 +1,23 @@
 package eval.execution;
 
+import eval.dataset.DatasetIdentity;
 import eval.domain.AttemptResult;
 import eval.domain.CaseFlags;
 import eval.domain.CaseResult;
 import eval.domain.ContractResult;
 import eval.domain.EvalRun;
 import eval.domain.EvalStatus;
+import eval.domain.JudgeDecision;
 import eval.domain.JudgeResult;
 import eval.domain.QualityGateResult;
 import eval.domain.Rate;
 import eval.domain.RetrievalResult;
 import eval.domain.RunConfiguration;
+import eval.domain.Violation;
 import eval.generation.GoldenCase;
 import eval.generation.GoldenReader;
 import eval.generation.Judge;
+import eval.generation.JudgeConsistency;
 import eval.generation.WorkflowPrompt;
 import eval.grading.ContractGrader;
 import eval.grading.HardSoftPolicy;
@@ -56,7 +60,8 @@ public final class EvalExecutor {
         long started = System.nanoTime();
         String runId = LocalDateTime.now().format(RUN_ID);
         String timestamp = java.time.Instant.now().toString();
-        List<GoldenCase> goldens = GoldenReader.loadAll();
+        List<GoldenCase> goldens = GoldenReader.loadSplit(config.datasetSplit());
+        String datasetHash = DatasetIdentity.hash(goldens);
         List<CaseResult> cases = new ArrayList<>();
         for (GoldenCase row : goldens) {
             cases.add(executeCase(row));
@@ -69,6 +74,7 @@ public final class EvalExecutor {
         int attemptsTotal = 0;
         int attemptsPassed = 0;
         int attemptsFailed = 0;
+        int attemptsSkipped = 0;
         int attemptsError = 0;
         for (CaseResult cse : cases) {
             switch (cse.status()) {
@@ -83,13 +89,13 @@ public final class EvalExecutor {
                     case PASS -> attemptsPassed++;
                     case FAIL -> attemptsFailed++;
                     case ERROR -> attemptsError++;
-                    case SKIPPED -> {
-                    }
+                    case SKIPPED -> attemptsSkipped++;
                 }
             }
         }
+        String executionMode = config.usesModel() ? "LIVE" : "DETERMINISTIC";
         RunConfiguration configuration = new RunConfiguration(
-                config.mode().name(),
+                executionMode,
                 config.model(),
                 config.judgeModel(),
                 config.judgeEnabled(),
@@ -97,7 +103,17 @@ public final class EvalExecutor {
                 config.includeRed(),
                 config.artifactMode().name(),
                 config.outputDir().toString(),
-                config.provider());
+                config.provider(),
+                config.experimentId(),
+                config.datasetSplit());
+        String gitCommit = GitMetadata.shortCommit();
+        String fingerprint = ConfigFingerprint.of(
+                configuration,
+                config.datasetVersion(),
+                datasetHash,
+                config.packDatasetVersion(),
+                config.experimentId(),
+                gitCommit);
         long durationMs = Math.max(1L, (System.nanoTime() - started) / 1_000_000L);
         EvalRun draft = new EvalRun(
                 runId,
@@ -106,7 +122,10 @@ public final class EvalExecutor {
                 config.judgeEnabled() ? config.judgeModel() : null,
                 config.datasetVersion(),
                 config.packDatasetVersion(),
-                GitMetadata.shortCommit(),
+                datasetHash,
+                gitCommit,
+                config.experimentId(),
+                fingerprint,
                 configuration,
                 goldens.size(),
                 casesPassed,
@@ -116,6 +135,7 @@ public final class EvalExecutor {
                 attemptsTotal,
                 attemptsPassed,
                 attemptsFailed,
+                attemptsSkipped,
                 attemptsError,
                 metrics,
                 cases,
@@ -124,6 +144,10 @@ public final class EvalExecutor {
         QualityGateResult gate = null;
         if (config.applyGate()) {
             EvalRun baseline = loadBaselineIfPresent(config);
+            if (baseline != null && config.datasetVersion() != null
+                    && !config.datasetVersion().equals(baseline.datasetVersion())) {
+                baseline = null;
+            }
             if (config.usesModel() && !isModelSnapshot(baseline)) {
                 gate = QualityGateResult.skipped("live quality gate needs a live baseline file");
             } else if (config.usesModel()
@@ -134,28 +158,7 @@ public final class EvalExecutor {
                 gate = QualityGate.evaluate(draft, config.thresholds(), baseline);
             }
         }
-        return new EvalRun(
-                draft.runId(),
-                draft.timestamp(),
-                draft.model(),
-                draft.judgeModel(),
-                draft.datasetVersion(),
-                draft.packDatasetVersion(),
-                draft.gitCommit(),
-                draft.configuration(),
-                draft.casesTotal(),
-                draft.casesPassed(),
-                draft.casesFailed(),
-                draft.casesSkipped(),
-                draft.casesError(),
-                draft.attemptsTotal(),
-                draft.attemptsPassed(),
-                draft.attemptsFailed(),
-                draft.attemptsError(),
-                draft.metrics(),
-                draft.cases(),
-                draft.durationMs(),
-                gate);
+        return draft.withQualityGate(gate);
     }
 
     public static boolean isModelSnapshot(EvalRun run) {
@@ -239,16 +242,29 @@ public final class EvalExecutor {
             EvalStatus status = HardSoftPolicy.hardStatus(contract);
             JudgeResult judge = null;
             String judgeRaw = null;
+            Rate judgeStability = null;
             if (config.judgeEnabled() && !row.expect().refused()) {
                 try {
-                    judgeRaw = Judge.review(
-                            row, response.content(), built.retrieved(), runner, config.judgeModel());
-                    judge = Judge.parseResult(judgeRaw);
+                    int jn = config.judgeRepetitions();
+                    List<JudgeDecision> decisions = new ArrayList<>();
+                    for (int j = 0; j < jn; j++) {
+                        judgeRaw = Judge.review(
+                                row, response.content(), built.retrieved(), runner, config.judgeModel());
+                        judge = Judge.parseResult(judgeRaw);
+                        decisions.add(judge.decision());
+                    }
+                    if (jn > 1) {
+                        judgeStability = JudgeConsistency.stability(decisions);
+                    }
                     if (HardSoftPolicy.judgeOverrideAttempted(contract, judge)) {
                         status = EvalStatus.FAIL;
                     }
                 } catch (EvalInfrastructureException e) {
-                    return AttemptResult.error(index, e.kind(), "judge: " + e.getMessage(), elapsed(started));
+                    return AttemptResult.error(
+                            index,
+                            EvalInfrastructureException.JUDGE_ERROR,
+                            "judge: " + e.getMessage(),
+                            elapsed(started));
                 }
             }
             return new AttemptResult(
@@ -261,7 +277,8 @@ public final class EvalExecutor {
                     response.tokens(),
                     Math.max(response.durationMs(), elapsed(started)),
                     null,
-                    status == EvalStatus.FAIL ? String.join("; ", contract.violations()) : null);
+                    status == EvalStatus.FAIL ? String.join("; ", contract.violations()) : null,
+                    judgeStability);
         } catch (EvalInfrastructureException e) {
             return AttemptResult.error(index, e.kind(), e.getMessage(), elapsed(started));
         } catch (InterruptedException e) {
@@ -346,6 +363,21 @@ public final class EvalExecutor {
             }
         }
         Rate success = Rate.of(passed, quality);
+        List<Violation> taxonomy = lastContract == null ? List.of() : lastContract.taxonomy();
+        Rate judgeStability = null;
+        if (attempts.size() == 1) {
+            judgeStability = attempts.getFirst().judgeStability();
+        } else {
+            List<JudgeDecision> all = new ArrayList<>();
+            for (AttemptResult a : attempts) {
+                if (a.judge() != null) {
+                    all.add(a.judge().decision());
+                }
+            }
+            if (all.size() > 1) {
+                judgeStability = JudgeConsistency.stability(all);
+            }
+        }
         return new CaseResult(
                 row.id(),
                 status,
@@ -357,6 +389,8 @@ public final class EvalExecutor {
                 success,
                 errors,
                 durationMs,
-                Map.of("prompt", row.prompt()));
+                Map.of("prompt", row.prompt()),
+                taxonomy,
+                judgeStability);
     }
 }

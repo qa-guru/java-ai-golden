@@ -9,12 +9,15 @@ import eval.domain.EvalStatus;
 import eval.domain.MetricDelta;
 import eval.domain.QualityGateResult;
 import eval.domain.Rate;
+import eval.domain.RunConfiguration;
 import eval.domain.Thresholds;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+
 public final class RunComparator {
 
     private RunComparator() {
@@ -34,11 +37,20 @@ public final class RunComparator {
                     "COMPARISON INVALID: datasetVersion mismatch: "
                             + baseline.datasetVersion() + " vs " + candidate.datasetVersion());
         }
+        if (baseline.datasetHash() != null && candidate.datasetHash() != null
+                && !baseline.datasetHash().equals(candidate.datasetHash())) {
+            return ComparisonResult.invalid(
+                    "COMPARISON INVALID: datasetHash mismatch (dataset content changed without a version bump)");
+        }
         if (baseline.packDatasetVersion() != null && candidate.packDatasetVersion() != null
                 && !baseline.packDatasetVersion().equals(candidate.packDatasetVersion())) {
             return ComparisonResult.invalid(
                     "COMPARISON INVALID: packDatasetVersion mismatch: "
                             + baseline.packDatasetVersion() + " vs " + candidate.packDatasetVersion());
+        }
+        String judge = judgeMismatch(baseline, candidate);
+        if (judge != null) {
+            return ComparisonResult.invalid(judge);
         }
         String protocol = protocolMismatch(baseline, candidate);
         if (protocol != null) {
@@ -62,9 +74,24 @@ public final class RunComparator {
                 latencyDelta(baseline, candidate));
 
         List<CaseComparison> cases = compareCases(baseline, candidate);
+        int unchangedPass = 0;
+        int unchangedFail = 0;
+        int regressions = 0;
+        int improvements = 0;
+        for (CaseComparison c : cases) {
+            switch (c.regression()) {
+                case UNCHANGED_PASS, STILL_PASSING -> unchangedPass++;
+                case UNCHANGED_FAIL, STILL_FAILING -> unchangedFail++;
+                case NEW_FAILURE -> regressions++;
+                case RECOVERED -> improvements++;
+                default -> {
+                }
+            }
+        }
+        McNemar mcnemar = McNemar.of(regressions, improvements);
         QualityGateResult gate = thresholds == null
                 ? null
-                : QualityGate.evaluate(candidate, thresholds, baseline);
+                : QualityGate.evaluate(candidate, thresholds, baseline, cases);
         return new ComparisonResult(
                 true,
                 null,
@@ -76,7 +103,32 @@ public final class RunComparator {
                 configDiffs,
                 metrics,
                 cases,
-                gate);
+                gate,
+                unchangedPass,
+                unchangedFail,
+                regressions,
+                improvements,
+                mcnemar);
+    }
+
+    static String judgeMismatch(EvalRun baseline, EvalRun candidate) {
+        RunConfiguration b = baseline.configuration();
+        RunConfiguration c = candidate.configuration();
+        if (b == null || c == null) {
+            return null;
+        }
+        if (!b.judgeEnabled() && !c.judgeEnabled()) {
+            return null;
+        }
+        if (b.judgeEnabled() != c.judgeEnabled()) {
+            return "COMPARISON INVALID: judgeEnabled mismatch: "
+                    + b.judgeEnabled() + " vs " + c.judgeEnabled();
+        }
+        if (!Objects.equals(nz(b.judgeModel()), nz(c.judgeModel()))) {
+            return "COMPARISON INVALID: judgeModel mismatch: "
+                    + b.judgeModel() + " vs " + c.judgeModel();
+        }
+        return null;
     }
 
     /**
@@ -86,6 +138,10 @@ public final class RunComparator {
     public static String protocolMismatch(EvalRun baseline, EvalRun candidate) {
         if (candidate == null || candidate.configuration() == null) {
             return null;
+        }
+        String mode = executionModeMismatch(baseline, candidate);
+        if (mode != null) {
+            return mode;
         }
         return protocolMismatch(
                 baseline,
@@ -111,6 +167,36 @@ public final class RunComparator {
         return null;
     }
 
+    static String executionModeMismatch(EvalRun baseline, EvalRun candidate) {
+        String left = executionMode(baseline);
+        String right = executionMode(candidate);
+        if (left == null || right == null) {
+            return null;
+        }
+        if (!left.equals(right)) {
+            return "COMPARISON INVALID: execution mode mismatch: " + left + " vs " + right
+                    + " (fixture vs live is not a model regression)";
+        }
+        return null;
+    }
+
+    static String executionMode(EvalRun run) {
+        if (run == null || run.configuration() == null || run.configuration().mode() == null) {
+            return null;
+        }
+        String mode = run.configuration().mode();
+        if ("DETERMINISTIC".equals(mode)) {
+            return "DETERMINISTIC";
+        }
+        if ("LIVE".equals(mode) || "BENCHMARK".equals(mode)) {
+            return "LIVE";
+        }
+        if ("REGRESSION".equals(mode)) {
+            return null;
+        }
+        return mode;
+    }
+
     private static MetricDelta latencyDelta(EvalRun baseline, EvalRun candidate) {
         Double bv = baseline.metrics().latency().samples() == 0 ? null : (double) baseline.metrics().latency().avgMs();
         Double cv = candidate.metrics().latency().samples() == 0 ? null : (double) candidate.metrics().latency().avgMs();
@@ -124,7 +210,7 @@ public final class RunComparator {
         return new MetricDelta("latencyAvgMs", bv, cv, d, dir, true);
     }
 
-    static List<CaseComparison> compareCases(EvalRun baseline, EvalRun candidate) {
+    public static List<CaseComparison> compareCases(EvalRun baseline, EvalRun candidate) {
         Map<String, CaseResult> b = index(baseline);
         Map<String, CaseResult> c = index(candidate);
         List<String> ids = new ArrayList<>();
@@ -150,24 +236,45 @@ public final class RunComparator {
                 out.add(new CaseComparison(id, CaseRegression.REMOVED, success(left), Rate.empty()));
                 continue;
             }
-            boolean basePass = isPass(left);
-            boolean candPass = isPass(right);
+            boolean baseQuality = isQuality(left);
+            boolean candQuality = isQuality(right);
             CaseRegression reg;
-            if (basePass && candPass) {
-                reg = CaseRegression.STILL_PASSING;
-            } else if (!basePass && !candPass) {
-                reg = CaseRegression.STILL_FAILING;
-            } else if (basePass) {
+            if (!baseQuality && !candQuality) {
+                reg = left.status() == EvalStatus.SKIPPED && right.status() == EvalStatus.SKIPPED
+                        ? CaseRegression.UNCHANGED_SKIPPED
+                        : CaseRegression.UNCHANGED_FAIL;
+            } else if (baseQuality && candQuality) {
+                boolean basePass = isPass(left);
+                boolean candPass = isPass(right);
+                if (basePass && candPass) {
+                    reg = CaseRegression.UNCHANGED_PASS;
+                } else if (!basePass && !candPass) {
+                    reg = CaseRegression.UNCHANGED_FAIL;
+                } else if (basePass) {
+                    reg = CaseRegression.NEW_FAILURE;
+                } else {
+                    reg = CaseRegression.RECOVERED;
+                }
+            } else if (baseQuality && isPass(left) && !candQuality) {
                 reg = CaseRegression.NEW_FAILURE;
-            } else {
+            } else if (!baseQuality && candQuality && isPass(right)) {
                 reg = CaseRegression.RECOVERED;
+            } else {
+                reg = CaseRegression.UNCHANGED_FAIL;
             }
             out.add(new CaseComparison(id, reg, success(left), success(right)));
         }
         return List.copyOf(out);
     }
 
+    static boolean isQuality(CaseResult cse) {
+        return cse.status() == EvalStatus.PASS || cse.status() == EvalStatus.FAIL;
+    }
+
     static boolean isPass(CaseResult cse) {
+        if (cse.status() == EvalStatus.SKIPPED || cse.status() == EvalStatus.ERROR) {
+            return false;
+        }
         if (cse.status() == EvalStatus.PASS) {
             return true;
         }
@@ -191,5 +298,9 @@ public final class RunComparator {
             map.put(cse.caseId(), cse);
         }
         return map;
+    }
+
+    private static String nz(String s) {
+        return s == null ? "" : s;
     }
 }

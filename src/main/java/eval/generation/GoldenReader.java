@@ -1,6 +1,7 @@
 package eval.generation;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import eval.dataset.DatasetIdentity;
 import eval.dataset.DatasetManifest;
 
 import java.io.IOException;
@@ -10,9 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Stream;
 
 public final class GoldenReader {
@@ -29,19 +28,50 @@ public final class GoldenReader {
     }
 
     public static List<GoldenCase> loadAll() {
+        return loadFile(evalDir().resolve(GOLDEN_FILE));
+    }
+
+    public static List<GoldenCase> loadHoldout() {
+        return loadFile(evalDir().resolve("holdout").resolve("golden-holdout.jsonl"));
+    }
+
+    public static List<GoldenCase> loadSplit(String split) {
+        if (split != null && split.equalsIgnoreCase("holdout")) {
+            return loadHoldout();
+        }
+        return loadAll();
+    }
+
+    public static String datasetHash() {
+        return DatasetIdentity.hash(loadAll());
+    }
+
+    public static String datasetHash(List<GoldenCase> rows) {
+        return DatasetIdentity.hash(rows);
+    }
+
+    public static List<GoldenCase> parseLines(List<String> lines) {
         List<GoldenCase> rows = new ArrayList<>();
-        try {
-            for (String line : Files.readAllLines(evalDir().resolve(GOLDEN_FILE), StandardCharsets.UTF_8)) {
-                if (line.isBlank() || line.startsWith("#")) {
-                    continue;
-                }
-                rows.add(MAPPER.readValue(line, GoldenCase.class));
+        for (String line : lines) {
+            if (line == null || line.isBlank() || line.startsWith("#")) {
+                continue;
             }
+            try {
+                rows.add(MAPPER.readValue(line, GoldenCase.class));
+            } catch (Exception e) {
+                throw new IllegalStateException("invalid golden JSONL: " + e.getMessage(), e);
+            }
+        }
+        DatasetIdentity.validate(rows);
+        return List.copyOf(rows);
+    }
+
+    static List<GoldenCase> loadFile(Path path) {
+        try {
+            return parseLines(Files.readAllLines(path, StandardCharsets.UTF_8));
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-        requireUniqueIds(rows);
-        return List.copyOf(rows);
     }
 
     public static DatasetManifest manifest() {
@@ -53,8 +83,24 @@ public final class GoldenReader {
         }
     }
 
+    public static DatasetManifest holdoutManifest() {
+        Path path = evalDir().resolve("holdout").resolve(MANIFEST_FILE);
+        try {
+            return MAPPER.readValue(Files.readString(path, StandardCharsets.UTF_8), DatasetManifest.class);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Missing or invalid holdout " + MANIFEST_FILE + ": " + path, e);
+        }
+    }
+
     public static String datasetVersion() {
         return manifest().version();
+    }
+
+    public static String datasetVersion(String split) {
+        if (split != null && split.equalsIgnoreCase("holdout")) {
+            return holdoutManifest().version();
+        }
+        return datasetVersion();
     }
 
     public static GoldenCase require(String id) {
@@ -65,11 +111,13 @@ public final class GoldenReader {
     }
 
     public static String fixture(String id) {
-        Path path = evalDir().resolve("fixtures").resolve(id + ".out.md");
+        Path primary = evalDir().resolve("fixtures").resolve(id + ".out.md");
+        Path holdout = evalDir().resolve("holdout").resolve("fixtures").resolve(id + ".out.md");
+        Path path = Files.isRegularFile(primary) ? primary : holdout;
         try {
             return Files.readString(path, StandardCharsets.UTF_8);
         } catch (IOException e) {
-            throw new UncheckedIOException("No fixture: " + path, e);
+            throw new UncheckedIOException("No fixture: " + primary + " or " + holdout, e);
         }
     }
 
@@ -87,12 +135,7 @@ public final class GoldenReader {
     }
 
     public static void requireUniqueIds(List<GoldenCase> rows) {
-        Set<String> seen = new HashSet<>();
-        for (GoldenCase row : rows) {
-            if (!seen.add(row.id())) {
-                throw new IllegalStateException("duplicate golden case id: " + row.id());
-            }
-        }
+        DatasetIdentity.validate(rows);
     }
 
     private static Path evalDirFromClasses() {
