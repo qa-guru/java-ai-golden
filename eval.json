@@ -1,0 +1,21 @@
+{
+  "mode": "deterministic",
+  "model": "qwen2.5-coder:7b",
+  "judge": true,
+  "repetitions": 1,
+  "outputDir": "build/eval",
+  "baseline": "baselines/generation-v1.json",
+  "artifacts": "failure",
+  "gate": false,
+  "thresholds": {
+    "overallPassRate": 1.0,
+    "contractPassRate": 1.0,
+    "retrievalPassRate": 1.0,
+    "negativeCasePassRate": 1.0,
+    "refusalAccuracy": 1.0,
+    "layerAccuracy": 1.0,
+    "ragAccuracy": 1.0,
+    "hallucinationRate": 0.0,
+    "allowedRegression": 0.02
+  }
+}

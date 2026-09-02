@@ -1,5 +1,6 @@
 plugins {
     id 'java'
+    id 'application'
 }
 
 java {
@@ -8,14 +9,28 @@ java {
     }
 }
 
+application {
+    mainClass = 'eval.cli.EvalMain'
+}
+
+run {
+    classpath = sourceSets.test.runtimeClasspath
+    workingDir = layout.projectDirectory
+}
+
 repositories {
     mavenCentral()
 }
 
+def ollamaProps = [
+        'live', 'model', 'judgeModel', 'judge', 'ollamaHost', 'writeFixtures', 'red',
+        'repetitions', 'mode', 'outputDir', 'baseline', 'gate', 'evalConfig', 'artifacts'
+]
+
 dependencies {
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.18.2'
     testImplementation platform('org.junit:junit-bom:5.11.4')
     testImplementation 'org.junit.jupiter:junit-jupiter'
-    testImplementation 'com.fasterxml.jackson.core:jackson-databind:2.18.2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
@@ -38,10 +53,60 @@ test {
         showExceptions = true
         showCauses = true
     }
-    ['live', 'model', 'judgeModel', 'judge', 'ollamaHost', 'writeFixtures', 'red'].each { key ->
+    ollamaProps.each { key ->
         def override = System.getProperty(key)
         if (override != null) {
             systemProperty key, override
         }
     }
+}
+
+def evalClasspath = sourceSets.test.runtimeClasspath
+
+tasks.register('evalDeterministic', JavaExec) {
+    group = 'eval'
+    description = 'Cheap PR eval: fixtures, contract, retriever, quality gate'
+    classpath = evalClasspath
+    mainClass = 'eval.cli.EvalMain'
+    workingDir = layout.projectDirectory
+    args '--mode=deterministic', '--gate', '--artifacts=failure'
+}
+
+tasks.register('evalLive', JavaExec) {
+    group = 'eval'
+    description = 'Limited live eval (Ollama). Skips red 7b rows unless -Dred=true'
+    classpath = evalClasspath
+    mainClass = 'eval.cli.EvalMain'
+    workingDir = layout.projectDirectory
+    args '--mode=live', '--judge=true'
+    ollamaProps.each { key ->
+        def override = System.getProperty(key)
+        if (override != null) {
+            systemProperty key, override
+        }
+    }
+}
+
+tasks.register('evalNightly', JavaExec) {
+    group = 'eval'
+    description = 'Full live eval: red rows, repetitions, optional --gate'
+    classpath = evalClasspath
+    mainClass = 'eval.cli.EvalMain'
+    workingDir = layout.projectDirectory
+    args '--mode=live', '--red', '--repetitions=5', '--artifacts=always'
+    ollamaProps.each { key ->
+        def override = System.getProperty(key)
+        if (override != null) {
+            systemProperty key, override
+        }
+    }
+}
+
+tasks.register('evalRegression', JavaExec) {
+    group = 'eval'
+    description = 'Compare current deterministic run to baselines/generation-v1.json'
+    classpath = evalClasspath
+    mainClass = 'eval.cli.EvalMain'
+    workingDir = layout.projectDirectory
+    args '--mode=regression', '--gate', '--baseline=baselines/generation-v1.json'
 }

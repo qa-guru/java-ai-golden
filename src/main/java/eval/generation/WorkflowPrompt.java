@@ -9,19 +9,19 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
-final class WorkflowPrompt {
+public final class WorkflowPrompt {
 
     private WorkflowPrompt() {
     }
 
-    record Built(String system, List<String> retrieved) {
+    public record Built(String system, List<String> retrieved) {
     }
 
-    static String system(GoldenCase row) {
+    public static String system(GoldenCase row) {
         return build(row).system();
     }
 
-    static Built build(GoldenCase row) {
+    public static Built build(GoldenCase row) {
         var parts = new ArrayList<String>();
         parts.add("Ты QA-агент в AI-first workflow. Соблюдай rules, skill, RAG и ADR.");
         parts.add(load("/pack/rules.md"));

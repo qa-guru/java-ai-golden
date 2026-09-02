@@ -1,0 +1,66 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      live:
+        description: 'Run evalLive (requires Ollama on the runner)'
+        type: boolean
+        default: false
+      nightly:
+        description: 'Run evalNightly (requires Ollama on the runner)'
+        type: boolean
+        default: false
+
+jobs:
+  pr:
+    name: deterministic eval
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Unit tests (mill + framework)
+        run: ./gradlew test --console=plain
+      - name: PR eval (fixtures, contract, retriever, gate)
+        run: ./gradlew evalDeterministic --console=plain
+      - name: Regression vs committed baseline
+        run: ./gradlew evalRegression --console=plain
+      - name: Upload eval artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-reports
+          path: build/eval/**
+          if-no-files-found: ignore
+
+  live:
+    name: live smoke
+    if: github.event_name == 'workflow_dispatch' && inputs.live
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Live eval (Ollama must be on PATH / localhost)
+        run: ./gradlew evalLive --console=plain
+
+  nightly:
+    name: nightly full
+    if: github.event_name == 'workflow_dispatch' && inputs.nightly
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Nightly eval
+        run: ./gradlew evalNightly --console=plain

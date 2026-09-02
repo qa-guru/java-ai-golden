@@ -109,3 +109,13 @@ e2e id = история формы. HTTP 401 — в `login-401-api` и в `must_
 - Не смешивать форму и JSON 401 в одном тесте.
 - Не кодировать HTTP-статус в id e2e-ряда.
 - Не считать skip `mixed-layer` / `hallucinate-*` на смоуке дырой; не считать красный 7b на `-Dred` провалом курса.
+
+## Eval pipeline (не на камеру)
+
+Полный прогон метрик / gate / baseline — [README.md](README.md). На CI без Ollama:
+
+```bash
+./gradlew test evalDeterministic evalRegression
+```
+
+`evalDeterministic` = 100% по **фикстурам**, не оценка живой 7b. Live: `./gradlew evalLive` / `evalNightly`.
