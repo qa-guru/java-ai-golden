@@ -49,7 +49,7 @@ public final class OllamaClient implements ModelRunner {
         HttpRequest request;
         try {
             request = HttpRequest.newBuilder(uri)
-                    .timeout(Duration.ofMinutes(3))
+                    .timeout(requestTimeout())
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(MAPPER.writeValueAsString(body)))
                     .build();
@@ -109,6 +109,22 @@ public final class OllamaClient implements ModelRunner {
             return null;
         }
         return root.get(field).asInt();
+    }
+
+    private static Duration requestTimeout() {
+        String raw = System.getProperty("ollamaTimeoutMinutes");
+        if (raw == null || raw.isBlank()) {
+            raw = System.getenv("OLLAMA_TIMEOUT_MINUTES");
+        }
+        int minutes = 3;
+        if (raw != null && !raw.isBlank()) {
+            try {
+                minutes = Integer.parseInt(raw.trim());
+            } catch (NumberFormatException ignored) {
+                minutes = 3;
+            }
+        }
+        return Duration.ofMinutes(Math.max(1, minutes));
     }
 
     private static String defaultHost() {

@@ -4,17 +4,31 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    # 02:00 Europe/Moscow (UTC+3, no DST)
+    - cron: '0 23 * * *'
   workflow_dispatch:
+    inputs:
+      run_live:
+        description: 'Live smoke on Box2 Ollama (qwen2.5-coder:7b)'
+        type: boolean
+        default: true
+      run_nightly:
+        description: 'Nightly protocol (red rows, 5 reps) on Box2 Ollama'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
 
 jobs:
-  # PR: deterministic mill + framework tests + fixture eval + regression vs committed baseline.
-  # MAIN live smoke / NIGHTLY full live: local or self-hosted with Ollama. Not on ubuntu-latest.
+  # Fixtures only. GitHub-hosted ubuntu-latest has no Ollama.
   pr:
     name: deterministic eval
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
@@ -30,8 +44,81 @@ jobs:
         run: ./gradlew evalJudgeCalibration --console=plain
       - name: Upload eval artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: eval-reports
+          path: build/eval/**
+          if-no-files-found: ignore
+
+  # Selectel Box2: Ollama on 127.0.0.1:11434, runner labels ollama+java-ai-golden.
+  live:
+    name: live smoke (Box2 Ollama)
+    needs: pr
+    if: github.event_name == 'workflow_dispatch' && inputs.run_live
+    runs-on: [self-hosted, ollama, java-ai-golden]
+    timeout-minutes: 90
+    concurrency:
+      group: java-ai-golden-ollama
+      cancel-in-progress: false
+    env:
+      OLLAMA_TIMEOUT_MINUTES: '10'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Ollama health (qwen2.5-coder:7b)
+        run: |
+          curl -sf http://127.0.0.1:11434/api/tags | grep -F 'qwen2.5-coder:7b'
+          curl -sf http://127.0.0.1:11434/api/chat \
+            -H 'Content-Type: application/json' \
+            -d '{"model":"qwen2.5-coder:7b","stream":false,"messages":[{"role":"user","content":"ping"}],"options":{"num_predict":8}}' \
+            >/dev/null
+      - name: Live smoke
+        run: ./gradlew evalLive --console=plain
+      - name: Live regression vs committed baseline
+        run: ./gradlew evalLiveRegression --console=plain
+      - name: Upload live eval artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: eval-reports-live
+          path: build/eval/**
+          if-no-files-found: ignore
+
+  nightly:
+    name: nightly live (Box2 Ollama)
+    needs: pr
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_nightly)
+    runs-on: [self-hosted, ollama, java-ai-golden]
+    timeout-minutes: 240
+    concurrency:
+      group: java-ai-golden-ollama
+      cancel-in-progress: false
+    env:
+      OLLAMA_TIMEOUT_MINUTES: '10'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Ollama health (qwen2.5-coder:7b)
+        run: |
+          curl -sf http://127.0.0.1:11434/api/tags | grep -F 'qwen2.5-coder:7b'
+          curl -sf http://127.0.0.1:11434/api/chat \
+            -H 'Content-Type: application/json' \
+            -d '{"model":"qwen2.5-coder:7b","stream":false,"messages":[{"role":"user","content":"ping"}],"options":{"num_predict":8}}' \
+            >/dev/null
+      - name: Nightly protocol (red, 5 reps)
+        run: ./gradlew evalNightly --console=plain
+      - name: Nightly regression vs committed baseline
+        run: ./gradlew evalNightlyRegression --console=plain
+      - name: Upload nightly eval artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: eval-reports-nightly
           path: build/eval/**
           if-no-files-found: ignore

@@ -113,12 +113,12 @@ e2e id = история формы. HTTP 401 — в `login-401-api` и в `must_
 
 ## Eval pipeline (не на камеру)
 
-Полный прогон метрик / gate / baseline — [README.md](README.md). GitHub Actions = только это (на `ubuntu-latest` нет Ollama; live туда не вешать):
+Полный прогон метрик / gate / baseline — [README.md](README.md). GitHub Actions на PR = только это (на `ubuntu-latest` нет Ollama; live туда не вешать):
 
 ```bash
 ./gradlew test evalDeterministic evalRegression evalHoldout evalHoldoutRegression evalJudgeCalibration
 ```
 
-`evalDeterministic` = 100% по **фикстурам**, не оценка живой 7b. Live 1-shot и nightly — **локально**, с Ollama: `evalLive` / `evalLiveRegression` и `evalNightly` / `evalNightlyRegression`.
+`evalDeterministic` = 100% по **фикстурам**, не оценка живой 7b. Live 1-shot и nightly — локально **или** self-hosted Box2 (`workflow_dispatch` / cron): `evalLive` / `evalLiveRegression` и `evalNightly` / `evalNightlyRegression`.
 
 Семантика PASS/FAIL/ERROR/SKIPPED, hash, gate, holdout — [docs/evaluation-methodology.md](docs/evaluation-methodology.md).

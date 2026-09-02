@@ -14,8 +14,6 @@ Semantics SSOT: [docs/evaluation-methodology.md](docs/evaluation-methodology.md)
 
 It is not a matrix cell, not a takeaway `main`, and not an MCP server.
 
-Mill walkthrough (camera, ~3 min): [START.md](START.md). Semantics SSOT: [docs/evaluation-methodology.md](docs/evaluation-methodology.md).
-
 ## What problem it solves
 
 A green JUnit test on one golden row answers “did this case pass?”.
@@ -183,14 +181,14 @@ Committed baseline `baselines/generation-v1.json` is the **deterministic fixture
 Live baseline `baselines/live-generation-v1.json` is a **model** snapshot (non-red rows, 1 attempt). Capture:
 
 ```bash
-./gradlew run --args='--mode=live --judge=true --artifacts=always --save-baseline=baselines/live-generation-v1.json'
+./gradlew run --args='--mode=live --judge=true --artifacts=always --save-baseline=baselines/live-generation-v1.json --force-save-baseline'
 ./gradlew evalLiveRegression
 ```
 
 Nightly baseline `baselines/nightly-generation-v1.json` is a **different protocol**: all 8 rows including red, 5 attempts. Do not compare it to the 1-shot live file (`repetitions` / `includeRed` mismatch → `COMPARISON INVALID`). Capture:
 
 ```bash
-./gradlew evalNightly -DsaveBaseline=baselines/nightly-generation-v1.json
+./gradlew evalNightly -DsaveBaseline=baselines/nightly-generation-v1.json -DforceSaveBaseline=true
 ./gradlew evalNightlyRegression
 ```
 
@@ -214,7 +212,9 @@ OpenAI-compatible HTTP (LM Studio, vLLM, OpenAI, …):
 
 `--gate` on **deterministic** runs applies `eval.json` `thresholds` (absolute 100% on fixtures, plus delta vs fixture baseline if the file exists).
 
-`--gate` on **live** runs applies `liveThresholds` only (default: `allowedRegression: 0.02`, no absolute mins). Without a live baseline file the gate is skipped — not a fake 100%.
+`--gate` on **live** runs applies `liveThresholds` only (default: `allowedRegression: 0.02`, no absolute mins). `--gate` without a **usable live** baseline (missing file, fixture snapshot, protocol/hash mismatch) **fails the gate** — it is not a skipped-as-PASS. Capture (`evalLive` / `evalNightly`) does not pass `--gate`.
+
+`--save-baseline=PATH` refuses to overwrite an existing file unless `--force-save-baseline` / `-DforceSaveBaseline=true`.
 
 Exit codes (`eval.cli.ExitCode`):
 
@@ -234,18 +234,21 @@ Statuses: `PASS` | `FAIL` | `SKIPPED` (red rows without `--red`) | `ERROR` (infr
 
 ## CI
 
-GitHub-hosted `ubuntu-latest` has **no Ollama**. Live or nightly on that runner is always `INFRASTRUCTURE_FAILURE`, not a model score. This repo does **not** install Ollama in Actions and does **not** expose live/nightly as `workflow_dispatch`.
+GitHub-hosted `ubuntu-latest` has **no Ollama**. Live or nightly on that runner is always `INFRASTRUCTURE_FAILURE`, not a model score. Do **not** install Ollama in the GitHub-hosted job.
+
+Live LLM runs on a **self-hosted** runner (`selectel-java-ai-golden`, labels `ollama` + `java-ai-golden`) on Selectel Box2. Ollama is already on `127.0.0.1:11434` with `qwen2.5-coder:7b` (CPU, not GL10). PR jobs stay on `ubuntu-latest`.
 
 | Where | Command | LLM |
 |---|---|---|
-| PR ([`ci.yml`](.github/workflows/ci.yml)) | `./gradlew test evalDeterministic evalRegression evalHoldout evalHoldoutRegression evalJudgeCalibration` | no |
-| MAIN live smoke (local Ollama) | `./gradlew evalLive` then `evalLiveRegression` | yes, skip red |
-| NIGHTLY (local) | `./gradlew evalNightlyRegression` | yes, red + 5 reps |
+| PR ([`ci.yml`](.github/workflows/ci.yml)) `ubuntu-latest` | `./gradlew test evalDeterministic evalRegression evalHoldout evalHoldoutRegression evalJudgeCalibration` | no |
+| Live smoke (Box2, `workflow_dispatch`) | `./gradlew evalLive` then `evalLiveRegression` | yes, skip red |
+| NIGHTLY (Box2, cron 02:00 MSK + dispatch) | `./gradlew evalNightly` then `evalNightlyRegression` | yes, red + 5 reps |
+| MAIN live smoke (local Ollama) | same Gradle tasks as live smoke | yes, skip red |
 | Holdout (final, not tuning) | `./gradlew evalHoldout` then `evalHoldoutRegression` | no |
 | Judge calibration (canned) | `./gradlew evalJudgeCalibration` | no |
 | Judge calibration (live, local) | `./gradlew evalJudgeCalibrationLive` | yes |
 
-A self-hosted runner with Ollama already on `localhost:11434` can run the local commands. Do not add that job until such a runner exists.
+CPU inference is slower than a laptop GPU. Jobs set `OLLAMA_TIMEOUT_MINUTES=10` (mill default remains 3). Do not add a live job without the `ollama` + `java-ai-golden` labels — other Box2 runners (`selectel-niffler` / `book-club` / `realworld`) have no model.
 
 ## Reports
 
@@ -302,7 +305,7 @@ Live (local Ollama, default `qwen2.5-coder:7b`):
 
 OpenAI-compatible: `--provider=openai` and `-DopenaiBaseUrl=` / `OPENAI_API_KEY`.
 
-System properties overlay `eval.json`: `model`, `judgeModel`, `judge`, `repetitions`, `red`, `gate`, `outputDir`, `baseline`, `live`, `provider`, `saveBaseline`.
+System properties overlay `eval.json`: `model`, `judgeModel`, `judge`, `repetitions`, `red`, `gate`, `outputDir`, `baseline`, `live`, `provider`, `saveBaseline`, `forceSaveBaseline`.
 
 Mill camera flags are unchanged: `-Dlive=true -DincludeTags=live`, `-Dred=true`, `-Djudge=false`, `-DwriteFixtures=true`. Mill live uses the same `ModelRunners` factory as the pipeline (`-Dprovider=openai` works there too). Default remains Ollama.
 

@@ -203,7 +203,7 @@ Gate fail → exit 2. Does not rewrite metrics.
 
 Deterministic PR gate: 100% / 0% hallucination on **fixtures**.
 
-Live: `liveThresholds` delta vs a **live** baseline file. Missing or protocol-mismatched live baseline → gate `SKIPPED` (not a fake 100%). Fixture baseline must not be used as a live score.
+Live: `liveThresholds` delta vs a **live** baseline file. Missing, fixture, or protocol-mismatched live baseline with `--gate` → gate **FAIL** (not a skipped-as-PASS, not a fake 100%). Capture without `--gate` leaves `qualityGate` unset. Fixture baseline must not be used as a live score.
 
 ## Hard vs soft
 
@@ -262,9 +262,10 @@ Each artifact write appends one line to `build/eval/history.jsonl`: timestamp, c
 
 | Where | Command | LLM |
 |---|---|---|
-| PR (GitHub Actions) | `./gradlew test evalDeterministic evalRegression evalHoldout evalHoldoutRegression evalJudgeCalibration` | no |
-| MAIN live smoke | local `./gradlew evalLive` then `evalLiveRegression` | yes, skip red |
-| NIGHTLY | local `./gradlew evalNightlyRegression` | yes, red + 5 reps |
+| PR (GitHub Actions, `ubuntu-latest`) | `./gradlew test evalDeterministic evalRegression evalHoldout evalHoldoutRegression evalJudgeCalibration` | no |
+| Live smoke (Box2 self-hosted, dispatch) | `./gradlew evalLive` then `evalLiveRegression` | yes, skip red |
+| NIGHTLY (Box2 self-hosted, cron) | `./gradlew evalNightly` then `evalNightlyRegression` | yes, red + 5 reps |
+| Local live | same Gradle tasks, local Ollama | yes |
 
 GitHub-hosted `ubuntu-latest` has no Ollama. Do not make live LLM required for every PR.
 
