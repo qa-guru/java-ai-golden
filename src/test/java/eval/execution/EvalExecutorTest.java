@@ -2,8 +2,10 @@ package eval.execution;
 
 import eval.cli.EvalMain;
 import eval.cli.ExitCode;
+import eval.domain.CaseResult;
 import eval.domain.EvalRun;
 import eval.domain.EvalStatus;
+import eval.generation.GoldenCase;
 import eval.generation.GoldenReader;
 import eval.provider.EvalInfrastructureException;
 import eval.provider.ModelResponse;
@@ -15,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -223,6 +226,56 @@ class EvalExecutorTest {
                 "--artifacts=never"
         });
         assertEquals(ExitCode.SUCCESS, code);
+    }
+
+    @Test
+    void consecutiveDeterministicRunsKeepKindsAndSlicesOrder() {
+        EvalConfig config = EvalConfig.resolve(new String[]{
+                "--mode=deterministic", "--artifacts=never", "--output=" + tmp
+        });
+        EvalRun a = new EvalExecutor(config).execute();
+        EvalRun b = new EvalExecutor(config).execute();
+        assertEquals(a.cases().size(), b.cases().size());
+        for (int i = 0; i < a.cases().size(); i++) {
+            assertEquals(
+                    List.copyOf(a.cases().get(i).kinds()),
+                    List.copyOf(b.cases().get(i).kinds()),
+                    a.cases().get(i).caseId());
+        }
+        assertEquals(
+                List.copyOf(a.metrics().slices().keySet()),
+                List.copyOf(b.metrics().slices().keySet()));
+    }
+
+    @Test
+    void liveRetrieverMissIsErrorAndDoesNotCallModel() {
+        EvalConfig config = EvalConfig.resolve(new String[]{
+                "--mode=live", "--judge=false", "--output=" + tmp, "--artifacts=never"
+        });
+        java.util.concurrent.atomic.AtomicInteger calls = new java.util.concurrent.atomic.AtomicInteger();
+        ModelRunner runner = (system, user, model) -> {
+            calls.incrementAndGet();
+            return new ModelResponse(fixtureFor(user), TokenUsage.of(1, 1), 8);
+        };
+        GoldenCase row = GoldenReader.require("login-valid-e2e");
+        var retrieval = eval.grading.RetrievalGrader.grade(row);
+        CaseResult result = new EvalExecutor(config, runner).executeLive(
+                row, retrieval, new eval.generation.WorkflowPrompt.Built("sys", List.of()));
+        assertEquals(EvalStatus.ERROR, result.status());
+        assertEquals(0, calls.get());
+        assertEquals(eval.provider.EvalInfrastructureException.RETRIEVER_MISS, result.attempts().getFirst().errorKind());
+        assertTrue(result.attempts().getFirst().errorMessage().contains("retriever returned no chunks"));
+    }
+
+    @Test
+    void unknownSplitIsUsage() {
+        int code = EvalMain.run(new String[]{
+                "--mode=deterministic",
+                "--split=nonsense",
+                "--output=" + tmp,
+                "--artifacts=never"
+        });
+        assertEquals(ExitCode.USAGE, code);
     }
 
     private static String fixtureFor(String user) {

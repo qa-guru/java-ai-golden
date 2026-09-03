@@ -53,6 +53,9 @@ public final class EvalMain {
                 case REGRESSION -> runRegression(config);
                 case BENCHMARK -> runBenchmark(config);
             };
+        } catch (IllegalArgumentException e) {
+            System.err.println("USAGE: " + e.getMessage());
+            return ExitCode.USAGE;
         } catch (RuntimeException e) {
             System.err.println("EVAL failed: " + e.getMessage());
             e.printStackTrace(System.err);

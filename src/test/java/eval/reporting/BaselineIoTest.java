@@ -27,6 +27,8 @@ class BaselineIoTest {
         assertEquals("holdout", run.configuration().datasetSplit());
         assertEquals(1.0, run.metrics().overallPassRate().value(), 1e-12);
         assertTrue(run.datasetHash() != null && !run.datasetHash().isBlank());
+        assertEquals(64, run.packHash().length());
+        assertEquals(eval.pack.PackFiles.contentHash(), run.packHash());
     }
 
     @Test
@@ -39,6 +41,8 @@ class BaselineIoTest {
         assertTrue(run.metrics().overallPassRate().defined());
         assertEquals(1.0, run.metrics().overallPassRate().value(), 1e-12);
         assertEquals("ollama", run.configuration().provider());
+        assertEquals(64, run.packHash().length());
+        assertEquals(eval.pack.PackFiles.contentHash(), run.packHash());
     }
 
     @Test
@@ -59,6 +63,8 @@ class BaselineIoTest {
         assertEquals("development", run.configuration().datasetSplit());
         assertTrue(run.datasetHash() != null && run.datasetHash().length() == 64);
         assertEquals(GoldenReader.datasetHash(), run.datasetHash());
+        assertEquals(64, run.packHash().length());
+        assertEquals(eval.pack.PackFiles.contentHash(), run.packHash());
     }
 
     @Test
@@ -84,6 +90,8 @@ class BaselineIoTest {
         assertEquals("development", run.configuration().datasetSplit());
         assertTrue(run.datasetHash() != null && run.datasetHash().length() == 64);
         assertEquals(GoldenReader.datasetHash(), run.datasetHash());
+        assertEquals(64, run.packHash().length());
+        assertEquals(eval.pack.PackFiles.contentHash(), run.packHash());
     }
 
     @Test

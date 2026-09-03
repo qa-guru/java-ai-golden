@@ -58,7 +58,8 @@ public final class PackFiles {
 
     /**
      * SHA-256 of pack files sorted by relative path. File listing order does not matter.
-     * Additive: old baselines without {@code packHash} still compare.
+     * Committed baselines record this field. {@code RunComparator} still accepts a legacy
+     * file that omitted it (invalid only when both sides have a hash and they differ).
      */
     public static String contentHash() {
         Path root = root();

@@ -21,9 +21,14 @@ public final class ReportIo {
 
     public static EvalRun readRun(Path path) {
         try {
-            return MAPPER.readValue(Files.readString(path), EvalRun.class);
+            EvalRun run = MAPPER.readValue(Files.readString(path), EvalRun.class);
+            if (run == null) {
+                throw new IllegalArgumentException("INVALID RUN " + path + ": empty document");
+            }
+            run.requireIntegrity();
+            return run;
         } catch (IOException e) {
-            throw new UncheckedIOException("Cannot read eval run " + path, e);
+            throw new IllegalArgumentException("INVALID RUN " + path + ": " + e.getMessage(), e);
         }
     }
 

@@ -181,6 +181,7 @@ public final class EvalConfig {
         }
         overlayProperties(config);
         overlayArgs(config, args);
+        validateSplit(config);
         return config;
     }
 
@@ -447,6 +448,14 @@ public final class EvalConfig {
         }
         if (config.mode == EvalMode.LIVE || config.mode == EvalMode.BENCHMARK) {
             config.live = true;
+        }
+    }
+
+    static void validateSplit(EvalConfig config) {
+        String split = config.datasetSplit();
+        if (!"development".equalsIgnoreCase(split) && !"holdout".equalsIgnoreCase(split)) {
+            throw new IllegalArgumentException(
+                    "unknown --split=" + split + " (expected development|holdout)");
         }
     }
 

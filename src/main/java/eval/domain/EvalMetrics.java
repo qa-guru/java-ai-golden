@@ -3,6 +3,8 @@ package eval.domain;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -37,7 +39,9 @@ public record EvalMetrics(
         latency = latency == null ? LatencyStats.empty() : latency;
         tokens = tokens == null ? TokenUsage.unknown() : tokens;
         unstableCaseRate = unstableCaseRate == null ? Rate.empty() : unstableCaseRate;
-        slices = slices == null ? Map.of() : Map.copyOf(slices);
+        slices = slices == null || slices.isEmpty()
+                ? Map.of()
+                : Collections.unmodifiableMap(new LinkedHashMap<>(slices));
     }
 
     public EvalMetrics(

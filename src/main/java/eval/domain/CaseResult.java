@@ -3,6 +3,8 @@ package eval.domain;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -27,7 +29,9 @@ public record CaseResult(
         if (caseId == null || caseId.isBlank()) {
             throw new IllegalArgumentException("caseId");
         }
-        kinds = kinds == null ? Set.of() : Set.copyOf(kinds);
+        kinds = kinds == null || kinds.isEmpty()
+                ? Set.of()
+                : Collections.unmodifiableSet(new LinkedHashSet<>(kinds));
         attempts = attempts == null ? List.of() : List.copyOf(attempts);
         errors = errors == null ? List.of() : List.copyOf(errors);
         metadata = metadata == null ? java.util.Map.of() : java.util.Map.copyOf(metadata);

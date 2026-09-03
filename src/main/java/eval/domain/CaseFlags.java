@@ -29,7 +29,7 @@ public final class CaseFlags {
         if (row.expect().layer() != null || "mixed-layer".equals(row.id())) {
             kinds.add(CaseKind.LAYER);
         }
-        return Set.copyOf(kinds);
+        return java.util.Collections.unmodifiableSet(kinds);
     }
 
     public static boolean has(CaseResult result, CaseKind kind) {

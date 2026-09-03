@@ -151,6 +151,54 @@ public record EvalRun(
         return qualityAttempts() == 0;
     }
 
+    /**
+     * Load-time contract: recorded aggregates must match {@code cases}.
+     * Does not recompute or repair — a mismatch is invalid.
+     */
+    public void requireIntegrity() {
+        int caseSum = casesPassed + casesFailed + casesSkipped + casesError;
+        if (caseSum != casesTotal) {
+            throw new IllegalArgumentException(
+                    "INVALID RUN: casesPassed+Failed+Skipped+Error=" + caseSum
+                            + " != casesTotal=" + casesTotal);
+        }
+        if (cases.size() != casesTotal) {
+            throw new IllegalArgumentException(
+                    "INVALID RUN: cases.size()=" + cases.size() + " != casesTotal=" + casesTotal);
+        }
+        int attemptSum = attemptsPassed + attemptsFailed + attemptsSkipped + attemptsError;
+        if (attemptSum != attemptsTotal) {
+            throw new IllegalArgumentException(
+                    "INVALID RUN: attemptsPassed+Failed+Skipped+Error=" + attemptSum
+                            + " != attemptsTotal=" + attemptsTotal);
+        }
+        if (metrics == null) {
+            throw new IllegalArgumentException("INVALID RUN: metrics missing");
+        }
+        if (!cases.isEmpty()) {
+            int qualityHits = 0;
+            int qualityTotal = 0;
+            for (CaseResult cse : cases) {
+                for (AttemptResult a : cse.attempts()) {
+                    if (a.quality()) {
+                        qualityTotal++;
+                        if (a.status() == EvalStatus.PASS) {
+                            qualityHits++;
+                        }
+                    }
+                }
+            }
+            Rate overall = metrics.overallPassRate();
+            if (overall == null || overall.hits() != qualityHits || overall.total() != qualityTotal) {
+                String recorded = overall == null ? "null" : overall.hits() + "/" + overall.total();
+                throw new IllegalArgumentException(
+                        "INVALID RUN: metrics.overallPassRate " + recorded
+                                + " != quality attempts " + qualityHits + "/" + qualityTotal
+                                + " derived from cases");
+            }
+        }
+    }
+
     private static String blankToNull(String s) {
         return s == null || s.isBlank() ? null : s;
     }

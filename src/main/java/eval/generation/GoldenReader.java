@@ -40,10 +40,13 @@ public final class GoldenReader {
     }
 
     public static List<GoldenCase> loadSplit(String split) {
-        if (split != null && split.equalsIgnoreCase("holdout")) {
+        if (split == null || split.isBlank() || split.equalsIgnoreCase("development")) {
+            return loadAll();
+        }
+        if (split.equalsIgnoreCase("holdout")) {
             return loadHoldout();
         }
-        return loadAll();
+        throw new IllegalArgumentException("unknown --split=" + split + " (expected development|holdout)");
     }
 
     public static String datasetHash() {
@@ -83,10 +86,13 @@ public final class GoldenReader {
     }
 
     public static String datasetVersion(String split) {
-        if (split != null && split.equalsIgnoreCase("holdout")) {
+        if (split == null || split.isBlank() || split.equalsIgnoreCase("development")) {
+            return datasetVersion();
+        }
+        if (split.equalsIgnoreCase("holdout")) {
             return holdoutManifest().version();
         }
-        return datasetVersion();
+        throw new IllegalArgumentException("unknown --split=" + split + " (expected development|holdout)");
     }
 
     public static GoldenCase require(String id) {

@@ -1,6 +1,6 @@
 # Dataset versioning
 
-Eval results **must** carry `datasetVersion`, `datasetHash`, and `packDatasetVersion`. New runs also carry `packHash` (content of `src/main/resources/pack/`). You cannot conclude model B is better than A if A ran on `generation-v1` and B on `generation-v3`, or if the JSONL changed without a version bump (`datasetHash` mismatch → `COMPARISON INVALID`). If **both** runs have `packHash` and they differ, that is also `COMPARISON INVALID`. A committed baseline without `packHash` still compares.
+Eval results **must** carry `datasetVersion`, `datasetHash`, `packDatasetVersion`, and `packHash` (SHA-256 of `src/main/resources/pack/`, files sorted by relative path). The four committed snapshots in `baselines/` include `packHash`. You cannot conclude model B is better than A if A ran on `generation-v1` and B on `generation-v3`, or if the JSONL changed without a version bump (`datasetHash` mismatch → `COMPARISON INVALID`). If **both** runs have `packHash` and they differ, that is also `COMPARISON INVALID`.
 
 ## Current
 
@@ -12,7 +12,7 @@ Eval results **must** carry `datasetVersion`, `datasetHash`, and `packDatasetVer
 
 Pack-only wording that does not change retrieve sets or contracts: bump **`pack-v1` only**. Anything that changes `expect.rag`, `must_not`, refuse behaviour, or case ids: bump **`generation-v1`** (and usually pack if the diet moved).
 
-`RunComparator` is `COMPARISON INVALID` when generation versions differ, when **both** runs have a pack version and they differ, when **both** runs have `packHash` and they differ, when `datasetHash` differs **or is present on only one side**, or when live **protocol** differs (`repetitions` or `includeRed`). A legacy baseline with `packHash` / `packDatasetVersion: null` still compares on pack; missing `configuration` skips the protocol check.
+`RunComparator` is `COMPARISON INVALID` when generation versions differ, when **both** runs have a pack version and they differ, when **both** runs have `packHash` and they differ, when `datasetHash` differs **or is present on only one side**, or when live **protocol** differs (`repetitions` or `includeRed`). A **legacy** file (not one of the four committed snapshots) with `packHash` / `packDatasetVersion: null` still compares on pack — that is comparator behavior for old artifacts, not a description of `baselines/*.json`. Missing `configuration` skips the protocol check.
 
 Live snapshots (same `generation-v1`, not interchangeable):
 

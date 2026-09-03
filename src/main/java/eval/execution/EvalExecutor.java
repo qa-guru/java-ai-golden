@@ -210,7 +210,13 @@ public final class EvalExecutor {
         if (!config.usesModel()) {
             return executeDeterministic(row, retrieval);
         }
-        return executeLive(row, retrieval);
+        WorkflowPrompt.Built built;
+        try {
+            built = WorkflowPrompt.build(row);
+        } catch (IllegalStateException e) {
+            return livePromptError(row, retrieval, e.getMessage());
+        }
+        return executeLive(row, retrieval, built);
     }
 
     private CaseResult executeDeterministic(GoldenCase row, RetrievalResult retrieval) {
@@ -236,10 +242,18 @@ public final class EvalExecutor {
         return assemble(row, List.of(attempt), retrieval, status, durationMs);
     }
 
-    private CaseResult executeLive(GoldenCase row, RetrievalResult retrieval) {
+    private CaseResult livePromptError(GoldenCase row, RetrievalResult retrieval, String message) {
+        AttemptResult attempt = AttemptResult.error(
+                1, EvalInfrastructureException.RETRIEVER_MISS, message, 1L);
+        return assemble(row, List.of(attempt), retrieval, EvalStatus.ERROR, 1L);
+    }
+
+    CaseResult executeLive(GoldenCase row, RetrievalResult retrieval, WorkflowPrompt.Built built) {
+        if (!row.expect().refused() && (built == null || built.retrieved() == null || built.retrieved().isEmpty())) {
+            return livePromptError(row, retrieval, row.id() + ": retriever returned no chunks");
+        }
         List<AttemptResult> attempts = new ArrayList<>();
         long caseStarted = System.nanoTime();
-        WorkflowPrompt.Built built = WorkflowPrompt.build(row);
         int n = config.repetitions();
         for (int i = 1; i <= n; i++) {
             attempts.add(liveAttempt(i, row, built));

@@ -85,7 +85,7 @@ Also called a quality failure. Taxonomy: `category`, `severity`, `grader`, `reas
 
 Evaluation infrastructure could not complete the case correctly.
 
-Kinds include: `MODEL_UNAVAILABLE`, `HTTP_ERROR`, `EMPTY_RESPONSE`, `PROVIDER_ERROR`, `TIMEOUT`, `PARSER_ERROR`, `JUDGE_ERROR`, `RATE_LIMIT` (HTTP 429).
+Kinds include: `MODEL_UNAVAILABLE`, `HTTP_ERROR`, `EMPTY_RESPONSE`, `PROVIDER_ERROR`, `TIMEOUT`, `PARSER_ERROR`, `JUDGE_ERROR`, `RATE_LIMIT` (HTTP 429), `RETRIEVER_MISS` (live prompt build / empty retrieve on a non-refuse row; the case is recorded and the run continues).
 
 Judge **HTTP** timeout/unavailable is attempt `ERROR` (`JUDGE_ERROR`). Malformed judge JSON, missing fields, out-of-range score, or VERDICT/JSON contradiction is **not** a quality FAIL: the attempt stays on the hard contract, and the judge result is `PENDING` with `schemaValid=false` (excluded from `judgeAcceptRate`).
 
@@ -174,11 +174,11 @@ A case is unstable when `qualityAttempts >= 2` and not all outcomes match.
 
 - `datasetVersion` (manifest)
 - `datasetHash` — SHA-256 of canonical JSON of cases **sorted by id**
-- `packHash` — SHA-256 of pack files **sorted by relative path** (additive: a legacy snapshot without `packHash` still compares)
+- `packHash` — SHA-256 of pack files **sorted by relative path**. The four committed `baselines/*.json` snapshots include it. `RunComparator` still treats a **legacy** file that omitted `packHash` as comparable (invalid only when both sides recorded a hash and they differ).
 
 Same bytes after reorder → same hash. Edit a prompt → different `datasetHash`. Edit a RAG chunk without bumping `pack-v1` → different `packHash` (and `COMPARISON INVALID` when **both** runs have a hash). Duplicate or missing `id` → hard error.
 
-Do not compare runs with different `datasetVersion` or different `datasetHash`. Missing hash on one side only is also `COMPARISON INVALID` for **dataset** hash (legacy snapshots must be recaptured). Missing `packHash` on one side only is **not** invalid.
+Do not compare runs with different `datasetVersion` or different `datasetHash`. Missing hash on one side only is also `COMPARISON INVALID` for **dataset** hash (legacy snapshots must be recaptured). Missing `packHash` on one side only is **not** invalid (comparator behavior for old files; committed snapshots all have `packHash`).
 
 ## Configuration fingerprint
 
@@ -260,7 +260,7 @@ Latency: min / avg / median / p95 / max around the model call (live) or fixture 
 
 ## History
 
-Each artifact write appends one line to `build/eval/history.jsonl`: timestamp, commit, experiment, model, dataset, overall, CI, quality gate. Not a database.
+Each artifact write appends one line to `build/eval/history.jsonl`: timestamp, commit, experiment, model, dataset, overall, quality gate. Not a database.
 
 ## Exit codes
 
