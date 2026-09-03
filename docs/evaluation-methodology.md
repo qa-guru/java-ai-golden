@@ -39,7 +39,7 @@ Current **development** set (`generation-v1`, 8 cases):
 
 A case may have several **kinds** derived from the row (`generation`, `retrieval`, `negative`, `hallucination`, `refusal`, `layer`, `rag`). Slice metrics use those kinds; the aggregator does not hardcode a product category list.
 
-**Holdout** (`holdout-v1`, 8 cases, not in development): `src/main/resources/eval/generation/holdout/`. **Do not use holdout to tune prompt, grader, or judge.** Default pipeline and **PR CI** load development only. Official holdout eval (`evalHoldout` / `evalHoldoutRegression`) runs on **push to `main`**, cron, and `workflow_dispatch` — not on `pull_request`. Unit tests still check that holdout ids are disjoint and fixtures/oracles are well-formed (`HoldoutDatasetTest`); that is file-contract, not a PR quality score. Final local check: `./gradlew evalHoldout`.
+**Holdout** (`holdout-v1`, 8 cases, not in development): `src/main/resources/eval/generation/holdout/`. **Do not use holdout to tune prompt, grader, or judge.** Default pipeline and the **PR eval Gradle tasks** load development only. Official `evalHoldout` / `evalHoldoutRegression` artifacts run on **push to `main`**, cron, and `workflow_dispatch` — not as a named PR job. A broken holdout fixture, oracle, or baseline **does fail the PR**: `./gradlew test` runs `HoldoutDatasetTest` (full executor + gate vs `baselines/holdout-v1.json`, plus the same CLI as `evalHoldoutRegression`). That is a file-contract gate, not a holdout quality score in PR artifacts. Final local check: `./gradlew evalHoldout`.
 
 | id | Role |
 |---|---|

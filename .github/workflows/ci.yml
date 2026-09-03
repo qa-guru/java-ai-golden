@@ -38,9 +38,10 @@ jobs:
         run: ./gradlew evalDeterministic --console=plain
       - name: Regression vs committed baseline
         run: ./gradlew evalRegression --console=plain
-      # Holdout is the final split. Do not run it on pull_request (tuning leakage).
-      # Still run on push to main, cron, and workflow_dispatch so fixtures cannot rot unseen.
-      - name: Holdout eval (final split, not PR)
+      # Holdout Gradle tasks are the official split eval (artifacts). Not on pull_request
+      # (tuning leakage). Broken holdout fixtures still fail PR via ./gradlew test
+      # (HoldoutDatasetTest). Artifacts run on push to main, cron, and dispatch.
+      - name: Holdout eval (final split artifacts, not PR)
         if: github.event_name != 'pull_request'
         run: ./gradlew evalHoldout evalHoldoutRegression --console=plain
       - name: Judge calibration (canned)

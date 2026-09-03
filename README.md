@@ -120,7 +120,7 @@ GitHub-hosted `ubuntu-latest` has no Ollama, so live jobs there would always be 
 | Live smoke (Box2, dispatch) | `evalLive`, then `evalLiveRegression -Dcandidate=$LATEST/run.json` | yes, red skipped |
 | Nightly (Box2, cron 02:00 MSK) | `evalNightly` (~30 min on CPU), then a compare-only regression | yes, red + 5 reps |
 
-The holdout Gradle tasks are kept off pull requests so nobody tunes against the final split, but a broken holdout fixture still fails the PR: `./gradlew test` runs `HoldoutDatasetTest`, which is a file-contract gate rather than a holdout score in the PR artifacts.
+The holdout Gradle tasks are kept off pull requests so nobody tunes against the final split, but a broken holdout fixture still fails the PR: `./gradlew test` runs `HoldoutDatasetTest` (executor + gate vs `baselines/holdout-v1.json`, and the same CLI as `evalHoldoutRegression`). That is a file-contract gate, not a holdout score in the PR artifacts.
 
 Because CPU inference is slow, the regression step reuses `build/eval/LATEST/run.json` via `-Dcandidate=` instead of running the model twice. Live jobs set `OLLAMA_TIMEOUT_MINUTES=10` (the mill default is 3) and must carry both runner labels — the other Box2 runners have no model installed.
 

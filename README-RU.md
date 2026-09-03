@@ -120,7 +120,7 @@ Gate бывает двух видов. На детерминированных �
 | Live-смоук (Box2, dispatch) | `evalLive`, затем `evalLiveRegression -Dcandidate=$LATEST/run.json` | да, красные пропущены |
 | Nightly (Box2, cron 02:00 MSK) | `evalNightly` (~30 мин на CPU), затем regression только на сравнение | да, красные + 5 повторов |
 
-Gradle-таски holdout убраны с pull request, чтобы под финальный сплит никто не тюнил, но сломанная holdout-фикстура PR всё равно валит: `./gradlew test` гоняет `HoldoutDatasetTest`. Это гейт на контракт файлов, а не holdout-оценка в артефактах PR.
+Gradle-таски holdout убраны с pull request, чтобы под финальный сплит никто не тюнил, но сломанная holdout-фикстура PR всё равно валит: `./gradlew test` гоняет `HoldoutDatasetTest` (executor + гейт vs `baselines/holdout-v1.json` и тот же CLI, что `evalHoldoutRegression`). Это гейт на контракт файлов, а не holdout-оценка в артефактах PR.
 
 CPU-инференс медленный, поэтому шаг regression переиспользует `build/eval/LATEST/run.json` через `-Dcandidate=` вместо второго прогона модели. Live-джобы ставят `OLLAMA_TIMEOUT_MINUTES=10` (дефолт мельницы — 3) и обязаны нести оба лейбла раннера: на остальных раннерах Box2 модели нет.
 

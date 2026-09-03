@@ -1,10 +1,14 @@
 package eval.generation;
 
 import eval.pack.LexicalRetriever;
+import eval.cli.EvalMain;
+import eval.cli.ExitCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.List;
 
@@ -15,6 +19,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @Tag("framework")
 @DisplayName("Holdout split")
 class HoldoutDatasetTest {
+
+    @TempDir
+    Path tmp;
 
     @Test
     void holdoutIsSeparateFromDevelopment() {
@@ -54,5 +61,18 @@ class HoldoutDatasetTest {
         assertEquals(8, run.casesPassed());
         assertEquals(1.0, run.metrics().overallPassRate().value(), 1e-12);
         assertTrue(run.qualityGate() != null && run.qualityGate().passed());
+    }
+
+    @Test
+    void holdoutRegressionCliMatchesCommittedBaseline() {
+        int code = EvalMain.run(new String[]{
+                "--mode=regression",
+                "--split=holdout",
+                "--gate",
+                "--baseline=baselines/holdout-v1.json",
+                "--artifacts=never",
+                "--output=" + tmp
+        });
+        assertEquals(ExitCode.SUCCESS, code);
     }
 }
