@@ -113,7 +113,7 @@ e2e id = история формы. HTTP 401 — в `login-401-api` и в `must_
 
 ## Eval pipeline (не на камеру)
 
-Полный прогон метрик / gate / baseline — [README.md](README.md). GitHub Actions на PR = только это (на `ubuntu-latest` нет Ollama; live туда не вешать):
+Полный прогон метрик / gate / baseline — [README-RU.md](README-RU.md) ([EN](README.md)). GitHub Actions на PR = только это (на `ubuntu-latest` нет Ollama; live туда не вешать):
 
 ```bash
 ./gradlew test evalDeterministic evalRegression evalJudgeCalibration
