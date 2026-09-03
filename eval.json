@@ -16,10 +16,9 @@
     "refusalAccuracy": 1.0,
     "layerAccuracy": 1.0,
     "ragAccuracy": 1.0,
-    "hallucinationRate": 0.0,
-    "allowedRegression": 0.02
+    "hallucinationRate": 0.0
   },
   "liveThresholds": {
-    "allowedRegression": 0.02
+    "allowedRegression": 0.0
   }
 }

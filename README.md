@@ -178,7 +178,7 @@ Same dataset, same graders, same attempt count. Table: Overall / Contract / RAG 
 ./gradlew evalRegression
 ```
 
-Requires matching `datasetVersion` (and `datasetHash` when both runs have one). Per-case: `NEW_FAILURE` | `RECOVERED` | `UNCHANGED_PASS` | `UNCHANGED_FAIL` | `NEW_ERROR` (infra, not quality). Metric deltas: `IMPROVED` | `REGRESSED` | `UNCHANGED`. Live delta FAIL if a hard rate drops more than `allowedRegression` (`REGRESSION`); within budget is `NO_REGRESSION`.
+Requires matching `datasetVersion` (and `datasetHash` when both runs have one). Per-case: `NEW_FAILURE` | `RECOVERED` | `UNCHANGED_PASS` | `UNCHANGED_FAIL` | `NEW_ERROR` (infra, not quality). Metric deltas: `IMPROVED` | `REGRESSED` | `UNCHANGED`. Live delta FAIL if a hard rate drops at all (`allowedRegression = 0`); equal rates are `NO_REGRESSION`.
 
 Paired summary: unchanged pass/fail, regressions, improvements. McNemar is informational, never the sole gate.
 
@@ -216,9 +216,9 @@ OpenAI-compatible HTTP (LM Studio, vLLM, OpenAI, …):
 
 ## Quality gate
 
-`--gate` on **deterministic** runs applies `eval.json` `thresholds` (absolute 100% on fixtures, plus delta vs fixture baseline if the file exists).
+`--gate` on **deterministic** runs applies `eval.json` `thresholds` (absolute 100% on fixtures). Fixture eval does not use a live-style regression budget.
 
-`--gate` on **live** runs applies `liveThresholds` only (default: `allowedRegression: 0.02`, no absolute mins). `--gate` without a **usable live** baseline (missing file, fixture snapshot, protocol/hash mismatch) **fails the gate** — it is not a skipped-as-PASS. Capture (`evalLive` / `evalNightly`) does not pass `--gate`.
+`--gate` on **live** runs applies `liveThresholds` only (default: `allowedRegression: 0` — any drop vs the live baseline fails; no absolute mins). `--gate` without a **usable live** baseline (missing file, fixture snapshot, protocol/hash mismatch) **fails the gate** — it is not a skipped-as-PASS. Capture (`evalLive` / `evalNightly`) does not pass `--gate`.
 
 `--save-baseline=PATH` refuses to overwrite an existing file unless `--force-save-baseline` / `-DforceSaveBaseline=true`.
 
@@ -246,11 +246,12 @@ Live LLM runs on a **self-hosted** runner (`selectel-java-ai-golden`, labels `ol
 
 | Where | Command | LLM |
 |---|---|---|
-| PR ([`ci.yml`](.github/workflows/ci.yml)) `ubuntu-latest` | `./gradlew test evalDeterministic evalRegression evalHoldout evalHoldoutRegression evalJudgeCalibration` | no |
+| PR ([`ci.yml`](.github/workflows/ci.yml)) `ubuntu-latest` | `./gradlew test evalDeterministic evalRegression evalJudgeCalibration` | no |
+| Push to `main` / cron / dispatch (not PR) | `evalHoldout evalHoldoutRegression` | no |
 | Live smoke (Box2, `workflow_dispatch`) | `evalLive`, then `evalLiveRegression -Dcandidate=$LATEST/run.json` | yes once, skip red |
 | NIGHTLY (Box2, cron 02:00 MSK + dispatch) | `evalNightly` (~30 min CPU), then compare-only `evalNightlyRegression -Dcandidate=…` | yes once, red + 5 reps |
 | MAIN live smoke (local Ollama) | same Gradle tasks as live smoke | yes, skip red |
-| Holdout (final, not tuning) | `./gradlew evalHoldout` then `evalHoldoutRegression` | no |
+| Holdout (final, not tuning; local) | `./gradlew evalHoldout` then `evalHoldoutRegression` | no |
 | Judge calibration (canned) | `./gradlew evalJudgeCalibration` | no |
 | Judge calibration (live, local) | `./gradlew evalJudgeCalibrationLive` | yes |
 
@@ -317,8 +318,10 @@ Mill camera flags are unchanged: `-Dlive=true -DincludeTags=live`, `-Dred=true`,
 
 ## Cheap PR eval vs full eval
 
-**PR:** `./gradlew test evalDeterministic evalRegression evalHoldout evalHoldoutRegression evalJudgeCalibration` — fixtures, contract, pack, retriever, grader tests, quality gate vs committed deterministic and holdout baselines, canned judge calibration.
+**PR:** `./gradlew test evalDeterministic evalRegression evalJudgeCalibration` — development fixtures, contract, pack, retriever, grader tests, quality gate vs committed **development** baseline, canned judge calibration. Holdout is **not** on PR.
+
+**Holdout (final):** after merge / cron / dispatch, or locally `./gradlew evalHoldout evalHoldoutRegression`. Do not tune prompt/grader/judge against this split.
 
 **Limited live:** `./gradlew evalLive` — five non-red goldens, one attempt, judge on. Then `evalLiveRegression` against the committed live baseline.
 
-**Full / nightly:** `./gradlew evalNightly` to capture; `evalNightlyRegression` against `baselines/nightly-generation-v1.json`. Same 7b, different protocol (red + 5 reps). Do not lower `liveThresholds` to paint 7b green.
+**Full / nightly:** `./gradlew evalNightly` to capture; `evalNightlyRegression` against `baselines/nightly-generation-v1.json`. Same 7b, different protocol (red + 5 reps). Do not raise `liveThresholds.allowedRegression` to paint 7b green.

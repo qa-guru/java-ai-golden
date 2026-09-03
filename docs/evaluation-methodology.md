@@ -39,7 +39,7 @@ Current **development** set (`generation-v1`, 8 cases):
 
 A case may have several **kinds** derived from the row (`generation`, `retrieval`, `negative`, `hallucination`, `refusal`, `layer`, `rag`). Slice metrics use those kinds; the aggregator does not hardcode a product category list.
 
-**Holdout** (`holdout-v1`, 8 cases, not in development): `src/main/resources/eval/generation/holdout/`. **Do not use holdout to tune prompt, grader, or judge.** Default pipeline loads development only. Final check: `./gradlew evalHoldout`.
+**Holdout** (`holdout-v1`, 8 cases, not in development): `src/main/resources/eval/generation/holdout/`. **Do not use holdout to tune prompt, grader, or judge.** Default pipeline and **PR CI** load development only. Official holdout eval (`evalHoldout` / `evalHoldoutRegression`) runs on **push to `main`**, cron, and `workflow_dispatch` — not on `pull_request`. Unit tests still check that holdout ids are disjoint and fixtures/oracles are well-formed (`HoldoutDatasetTest`); that is file-contract, not a PR quality score. Final local check: `./gradlew evalHoldout`.
 
 | id | Role |
 |---|---|
@@ -132,10 +132,11 @@ Overall improvement must not hide a `NEW_FAILURE`. A **CRITICAL** new failure fa
 
 Live delta (`--gate`):
 
-1. If the rate is within `allowedRegression` of the baseline → `NO_REGRESSION`.
-2. If the rate is worse than allowed → `REGRESSION` (gate FAIL).
-3. A **CRITICAL** `NEW_FAILURE` still fails the gate even when the overall drop is within budget.
-4. Absolute thresholds (fixture 100%) are unchanged: one fixture fail is still a gate FAIL.
+1. `liveThresholds.allowedRegression` is **0**. Equal to baseline → `NO_REGRESSION`. Any drop in a hard rate → `REGRESSION` (gate FAIL).
+2. That is **zero-tolerance**, not a 2pp statistical budget. Current live N=5 and nightly N=40 both have step \(1/N\) larger than 2pp, so a 0.02 budget was already zero-tolerance in disguise.
+3. Do **not** raise the live budget to \(1/N\) (20% on the 5-attempt smoke): one failed case would still pass the delta gate.
+4. A **CRITICAL** `NEW_FAILURE` still fails the gate even if overall delta is within budget (with budget 0 this is redundant except as an explicit severity rule).
+5. Absolute thresholds (fixture 100%) are unchanged: one fixture fail is still a gate FAIL.
 
 `comparison.decision` is `REGRESSION` | `NO_REGRESSION` | `COMPARISON_INVALID`. McNemar stays informational.
 
@@ -207,9 +208,9 @@ Different **models, prompts, experiments** are allowed — that is the experimen
 Two rule families, both optional per metric:
 
 1. **Absolute** — pass rate ≥ min; hallucination ≤ max
-2. **Delta** — rate vs `allowedRegression`. Worse than allowed → FAIL.
+2. **Delta** — live: any drop vs baseline (`allowedRegression = 0`). Fixture eval uses absolute 100% / 0% hallucination, not a live-style budget.
 
-Absolute pass does **not** waive a delta fail: baseline 20/20, candidate 5/20, absolute min 20%, max regression 2pp → absolute PASS, delta **REGRESSION**.
+Absolute pass does **not** waive a delta fail: baseline 20/20, candidate 5/20, absolute min 20%, `allowedRegression = 0` → absolute PASS, delta **REGRESSION**.
 
 CRITICAL new failures fail the gate.
 
@@ -217,7 +218,7 @@ Gate fail → exit 2. Does not rewrite metrics.
 
 Deterministic PR gate: 100% / 0% hallucination on **fixtures**.
 
-Live: `liveThresholds` delta vs a **live** baseline file. Missing, fixture, or protocol-mismatched live baseline with `--gate` → gate **FAIL** (not a skipped-as-PASS, not a fake 100%). Capture without `--gate` leaves `qualityGate` unset. Fixture baseline must not be used as a live score.
+Live: `liveThresholds` delta vs a **live** baseline file (`allowedRegression = 0`). Missing, fixture, or protocol-mismatched live baseline with `--gate` → gate **FAIL** (not a skipped-as-PASS, not a fake 100%). Capture without `--gate` leaves `qualityGate` unset. Fixture baseline must not be used as a live score.
 
 ## Hard vs soft
 
@@ -276,7 +277,8 @@ Each artifact write appends one line to `build/eval/history.jsonl`: timestamp, c
 
 | Where | Command | LLM |
 |---|---|---|
-| PR (GitHub Actions, `ubuntu-latest`) | `./gradlew test evalDeterministic evalRegression evalHoldout evalHoldoutRegression evalJudgeCalibration` | no |
+| PR (GitHub Actions, `ubuntu-latest`) | `./gradlew test evalDeterministic evalRegression evalJudgeCalibration` | no |
+| Push to `main` / cron / dispatch (same job, not PR) | `evalHoldout evalHoldoutRegression` | no |
 | Live smoke (Box2 self-hosted, dispatch) | `evalLive` then compare-only vs live baseline | yes once, skip red |
 | NIGHTLY (Box2 self-hosted, cron) | `evalNightly` then compare-only vs nightly baseline | yes once, red + 5 reps |
 | Local live | same Gradle tasks, local Ollama | yes |
@@ -292,3 +294,4 @@ GitHub-hosted `ubuntu-latest` has no Ollama. Do not make live LLM required for e
 - Judge `PENDING` ≠ accept.
 - Calibration corpus accuracy ≠ production judge accuracy.
 - Holdout of 8 cases is a split discipline, not a large generalization test.
+- `allowedRegression = 0` is honest zero-tolerance at current N; it is not a confidence interval.

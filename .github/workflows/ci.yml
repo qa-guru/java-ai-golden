@@ -38,7 +38,10 @@ jobs:
         run: ./gradlew evalDeterministic --console=plain
       - name: Regression vs committed baseline
         run: ./gradlew evalRegression --console=plain
-      - name: Holdout eval (fixtures, not for tuning)
+      # Holdout is the final split. Do not run it on pull_request (tuning leakage).
+      # Still run on push to main, cron, and workflow_dispatch so fixtures cannot rot unseen.
+      - name: Holdout eval (final split, not PR)
+        if: github.event_name != 'pull_request'
         run: ./gradlew evalHoldout evalHoldoutRegression --console=plain
       - name: Judge calibration (canned)
         run: ./gradlew evalJudgeCalibration --console=plain

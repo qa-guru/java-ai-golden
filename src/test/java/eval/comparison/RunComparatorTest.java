@@ -177,6 +177,20 @@ class RunComparatorTest {
     }
 
     @Test
+    void liveDeltaIsZeroTolerance() {
+        assertEquals(0.0, Thresholds.liveDelta().allowedRegression());
+    }
+
+    @Test
+    void oneAttemptDropFailsLiveDelta() {
+        EvalRun baseline = run("b", "generation-v1", nCases(5, 5));
+        EvalRun candidate = run("c", "generation-v1", nCases(4, 5));
+        ComparisonResult result = RunComparator.compare(baseline, candidate, Thresholds.liveDelta());
+        assertTrue(result.valid());
+        assertFalse(result.qualityGate().passed());
+    }
+
+    @Test
     void dropBeyondAllowedFailsGate() {
         EvalRun baseline = run("b", "generation-v1", nCases(19, 20));
         EvalRun candidate = run("c", "generation-v1", nCases(18, 20));
