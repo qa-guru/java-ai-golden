@@ -86,6 +86,9 @@ e2e id = история формы. HTTP 401 — в `login-401-api` и в `must_
 | `src/test/java/eval/pack/` | pack и ретривер как SUT |
 | `build/live-out/<id>.out.md` | сырой ответ генератора |
 | `build/live-out/<id>.judge.md` | вердикт судьи |
+| `build/eval/<runId>/eval-report.md` | свод метрик после `evalDeterministic` / live |
+| `build/eval-pages/` | тот же свод как статика (`./gradlew evalPages`) |
+| [GitHub Pages](https://qa-guru.github.io/java-ai-golden/) | последний фикстурный eval с `main` |
 
 Два оракула: **programmatic grader** → **LLM-as-a-judge** (только live, не-отказы).  
 Грейдер тоже тестируем: вежливый «не могу» ≠ отказ; `401` + `Unauthorized` ≠ канон; `@Step` на `*Tests` ≠ Allure; первая строка отказа — `Отказ.`, без Java и id чанков.

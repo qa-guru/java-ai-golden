@@ -49,4 +49,4 @@ PASS
 Allowed because every recorded rule passed.
 ```
 
-Markdown from the same pipeline: `build/eval/<runId>/eval-report.md` after `./gradlew evalDeterministic`. Semantics: [evaluation-methodology.md](../evaluation-methodology.md).
+Markdown from the same pipeline: `build/eval/<runId>/eval-report.md` after `./gradlew evalDeterministic`. On `main`, CI also publishes HTML to [GitHub Pages](https://qa-guru.github.io/java-ai-golden/). Semantics: [evaluation-methodology.md](../evaluation-methodology.md).

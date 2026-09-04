@@ -35,7 +35,7 @@ With a local Ollama (default model `qwen2.5-coder:7b`):
 ./gradlew evalLiveRegression  # delta vs the committed live baseline
 ```
 
-Results land in `build/eval/<runId>/`: `run.json`, `summary.json`, `eval-report.md`, and per-case artifacts for failures (`--artifacts=always` for all of them). Sample report: [docs/examples/eval-report.md](docs/examples/eval-report.md).
+Results land in `build/eval/<runId>/`: `run.json`, `summary.json`, `eval-report.md`, and per-case artifacts for failures (`--artifacts=always` for all of them). Sample report: [docs/examples/eval-report.md](docs/examples/eval-report.md). After `./gradlew evalPages`, a browsable copy is in `build/eval-pages/`. On `main`, CI publishes that tree to [GitHub Pages](https://qa-guru.github.io/java-ai-golden/).
 
 ## Dataset
 
@@ -123,6 +123,8 @@ GitHub-hosted `ubuntu-latest` has no Ollama, so live jobs there would always be 
 The holdout Gradle tasks are kept off pull requests so nobody tunes against the final split, but a broken holdout fixture still fails the PR: `./gradlew test` runs `HoldoutDatasetTest` (executor + gate vs `baselines/holdout-v1.json`, and the same CLI as `evalHoldoutRegression`). That is a file-contract gate, not a holdout score in the PR artifacts.
 
 The regression step reuses `build/eval/LATEST/run.json` via `-Dcandidate=` instead of running the model twice. Live jobs set `OLLAMA_TIMEOUT_MINUTES=10` (the mill default is 3) and must carry both runner labels — the other Box2 runners are not this mill.
+
+Successful (and failed-but-written) fixture evals on `main` are published to [GitHub Pages](https://qa-guru.github.io/java-ai-golden/) (`evalPages` → `actions/upload-pages-artifact@v5` → separate `deploy-pages@v5` job). Repo Settings → Pages → Source must be **GitHub Actions**, not the legacy branch builder. Live/nightly HTML is not on Pages unless those runs are already under `build/eval` in that ubuntu job; their JSON stays in the `eval-reports-live` / `eval-reports-nightly` artifacts.
 
 ## Layout
 

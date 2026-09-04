@@ -26,6 +26,12 @@ jobs:
   pr:
     name: deterministic eval
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    outputs:
+      pages_ready: ${{ steps.pages-artifact.outcome }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
@@ -53,6 +59,34 @@ jobs:
           name: eval-reports
           path: build/eval/**
           if-no-files-found: ignore
+      - name: Build GitHub Pages site
+        if: always() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        run: ./gradlew evalPages --console=plain
+      - name: Upload Pages artifact
+        id: pages-artifact
+        if: always() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && hashFiles('build/eval-pages/index.html') != ''
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: build/eval-pages
+
+  github-pages:
+    name: GitHub Pages
+    needs: pr
+    if: always() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.pr.outputs.pages_ready == 'success'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: java-ai-golden-pages
+      cancel-in-progress: false
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
 
   # Box2 runner; inference https://ollama.qa.guru (Basic: secrets OLLAMA_USER / OLLAMA_PASSWORD).
   live:

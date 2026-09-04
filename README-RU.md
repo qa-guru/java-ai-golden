@@ -35,7 +35,7 @@ cd java-ai-golden
 ./gradlew evalLiveRegression  # дельта против закоммиченного live-baseline
 ```
 
-Результаты пишутся в `build/eval/<runId>/`: `run.json`, `summary.json`, `eval-report.md` и по-кейсовые артефакты для падений (`--artifacts=always` — для всех). Пример отчёта: [docs/examples/eval-report.md](docs/examples/eval-report.md).
+Результаты пишутся в `build/eval/<runId>/`: `run.json`, `summary.json`, `eval-report.md` и по-кейсовые артефакты для падений (`--artifacts=always` — для всех). Пример отчёта: [docs/examples/eval-report.md](docs/examples/eval-report.md). После `./gradlew evalPages` HTML лежит в `build/eval-pages/`. На `main` CI публикует это дерево на [GitHub Pages](https://qa-guru.github.io/java-ai-golden/).
 
 ## Датасет
 
@@ -123,6 +123,8 @@ Gate бывает двух видов. На детерминированных �
 Gradle-таски holdout убраны с pull request, чтобы под финальный сплит никто не тюнил, но сломанная holdout-фикстура PR всё равно валит: `./gradlew test` гоняет `HoldoutDatasetTest` (executor + гейт vs `baselines/holdout-v1.json` и тот же CLI, что `evalHoldoutRegression`). Это гейт на контракт файлов, а не holdout-оценка в артефактах PR.
 
 Шаг regression переиспользует `build/eval/LATEST/run.json` через `-Dcandidate=` вместо второго прогона модели. Live-джобы ставят `OLLAMA_TIMEOUT_MINUTES=10` (дефолт мельницы — 3) и обязаны нести оба лейбла раннера: остальные раннеры Box2 — не этот mill.
+
+Фикстурные eval на `main` (даже если gate красный, но `eval-report.md` уже записан) публикуются на [GitHub Pages](https://qa-guru.github.io/java-ai-golden/) (`evalPages` → `actions/upload-pages-artifact@v5` → отдельный job `deploy-pages@v5`). В Settings → Pages источник должен быть **GitHub Actions**, не legacy branch builder. Live/nightly на Pages не попадают, пока их нет в `build/eval` ubuntu-джобы; JSON остаётся в артефактах `eval-reports-live` / `eval-reports-nightly`.
 
 ## Структура
 

@@ -186,3 +186,12 @@ tasks.register('evalLiveRegression', JavaExec) {
         }
     }
 }
+
+tasks.register('evalPages', JavaExec) {
+    group = 'eval'
+    description = 'Build a static GitHub Pages site from build/eval'
+    classpath = evalClasspath
+    mainClass = 'eval.cli.PagesMain'
+    workingDir = layout.projectDirectory
+    args '--input=build/eval', '--output=build/eval-pages'
+}
