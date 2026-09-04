@@ -111,18 +111,18 @@ Gate бывает двух видов. На детерминированных �
 
 ## CI
 
-На GitHub-раннере `ubuntu-latest` нет Ollama, поэтому live там всегда был бы инфраструктурным падением. Live крутится на self-hosted раннере Selectel Box2 (`selectel-java-ai-golden`, лейблы `ollama` + `java-ai-golden`), где Ollama уже отдаёт `qwen2.5-coder:7b` на `127.0.0.1:11434` с CPU.
+На GitHub-раннере `ubuntu-latest` нет Ollama, поэтому live там всегда был бы инфраструктурным падением. Live крутится на self-hosted раннере Selectel Box2 (`selectel-java-ai-golden`, лейблы `ollama` + `java-ai-golden`). Инференс — GPU Ollama на [ollama.qa.guru](https://ollama.qa.guru) (`OLLAMA_HOST=https://ollama.qa.guru`), Basic из секретов репо `OLLAMA_USER` / `OLLAMA_PASSWORD`. Модель mill — `qwen2.5-coder:7b` (не 30b). Локальный `evalLive` по-прежнему `http://127.0.0.1:11434`. `OllamaClient` шлёт `Authorization: Basic` из этих env (или userinfo в URL) — Java `HttpClient` сам Basic из `user:pass@url` не ставит.
 
 | Триггер | Что гоняет | LLM |
 |---|---|---|
 | Pull request ([`ci.yml`](.github/workflows/ci.yml)) | `test evalDeterministic evalRegression evalJudgeCalibration` | нет |
 | Push в `main`, cron, dispatch | то же плюс `evalHoldout evalHoldoutRegression` | нет |
-| Live-смоук (Box2, dispatch) | `evalLive`, затем `evalLiveRegression -Dcandidate=$LATEST/run.json` | да, красные пропущены |
-| Nightly (Box2, cron 02:00 MSK) | `evalNightly` (~30 мин на CPU), затем regression только на сравнение | да, красные + 5 повторов |
+| Live-смоук (раннер Box2 / GPU, dispatch) | `evalLive`, затем `evalLiveRegression -Dcandidate=$LATEST/run.json` | да, красные пропущены |
+| Nightly (раннер Box2 / GPU, cron 02:00 MSK) | `evalNightly`, затем regression только на сравнение | да, красные + 5 повторов |
 
 Gradle-таски holdout убраны с pull request, чтобы под финальный сплит никто не тюнил, но сломанная holdout-фикстура PR всё равно валит: `./gradlew test` гоняет `HoldoutDatasetTest` (executor + гейт vs `baselines/holdout-v1.json` и тот же CLI, что `evalHoldoutRegression`). Это гейт на контракт файлов, а не holdout-оценка в артефактах PR.
 
-CPU-инференс медленный, поэтому шаг regression переиспользует `build/eval/LATEST/run.json` через `-Dcandidate=` вместо второго прогона модели. Live-джобы ставят `OLLAMA_TIMEOUT_MINUTES=10` (дефолт мельницы — 3) и обязаны нести оба лейбла раннера: на остальных раннерах Box2 модели нет.
+Шаг regression переиспользует `build/eval/LATEST/run.json` через `-Dcandidate=` вместо второго прогона модели. Live-джобы ставят `OLLAMA_TIMEOUT_MINUTES=10` (дефолт мельницы — 3) и обязаны нести оба лейбла раннера: остальные раннеры Box2 — не этот mill.
 
 ## Структура
 

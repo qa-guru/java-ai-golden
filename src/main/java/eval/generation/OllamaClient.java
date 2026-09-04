@@ -12,14 +12,20 @@ import eval.provider.ModelRunner;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpTimeoutException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Base64;
 
 /**
  * Ollama HTTP adapter. Mill live tests and the eval pipeline both go through {@link #complete}.
+ * {@code java.net.http.HttpClient} does not send Basic auth from {@code user:pass@host};
+ * credentials come from {@code OLLAMA_USER}/{@code OLLAMA_PASSWORD} or URL userinfo, as an
+ * {@code Authorization} header.
  */
 public final class OllamaClient implements ModelRunner {
 
@@ -34,8 +40,11 @@ public final class OllamaClient implements ModelRunner {
     @Override
     public ModelResponse complete(String system, String user, String model)
             throws EvalInfrastructureException, InterruptedException {
-        String host = System.getProperty("ollamaHost", defaultHost());
-        URI uri = URI.create(trimSlash(host) + "/api/chat");
+        Target target = resolve(
+                System.getProperty("ollamaHost", defaultHost()),
+                System.getenv("OLLAMA_USER"),
+                System.getenv("OLLAMA_PASSWORD"));
+        URI uri = URI.create(target.base() + "/api/chat");
 
         ObjectNode body = MAPPER.createObjectNode();
         body.put("model", model);
@@ -48,11 +57,13 @@ public final class OllamaClient implements ModelRunner {
 
         HttpRequest request;
         try {
-            request = HttpRequest.newBuilder(uri)
+            HttpRequest.Builder builder = HttpRequest.newBuilder(uri)
                     .timeout(requestTimeout())
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(MAPPER.writeValueAsString(body)))
-                    .build();
+                    .header("Content-Type", "application/json");
+            if (target.authorization() != null) {
+                builder.header("Authorization", target.authorization());
+            }
+            request = builder.POST(HttpRequest.BodyPublishers.ofString(MAPPER.writeValueAsString(body))).build();
         } catch (IOException e) {
             throw new EvalInfrastructureException(EvalInfrastructureException.PROVIDER_ERROR, e.getMessage(), e);
         }
@@ -64,12 +75,12 @@ public final class OllamaClient implements ModelRunner {
         } catch (HttpTimeoutException e) {
             throw new EvalInfrastructureException(
                     EvalInfrastructureException.TIMEOUT,
-                    "Ollama timeout at " + host + ": " + e.getMessage(),
+                    "Ollama timeout at " + target.base() + ": " + e.getMessage(),
                     e);
         } catch (ConnectException e) {
             throw new EvalInfrastructureException(
                     EvalInfrastructureException.MODEL_UNAVAILABLE,
-                    "Ollama unavailable at " + host + ": " + e.getMessage(),
+                    "Ollama unavailable at " + target.base() + ": " + e.getMessage(),
                     e);
         } catch (IOException e) {
             throw new EvalInfrastructureException(
@@ -135,7 +146,48 @@ public final class OllamaClient implements ModelRunner {
         return "http://127.0.0.1:11434";
     }
 
+    static Target resolve(String hostRaw, String envUser, String envPassword) {
+        String withScheme = hostRaw.contains("://") ? hostRaw : "http://" + hostRaw;
+        URI parsed = URI.create(trimSlash(withScheme));
+        String user = envUser;
+        String password = envPassword;
+        String info = parsed.getUserInfo();
+        if (info != null && !info.isBlank()) {
+            int colon = info.indexOf(':');
+            if (colon >= 0) {
+                user = info.substring(0, colon);
+                password = info.substring(colon + 1);
+            } else {
+                user = info;
+            }
+        }
+        String authorization = null;
+        if (user != null && !user.isBlank() && password != null) {
+            authorization = "Basic " + Base64.getEncoder()
+                    .encodeToString((user + ":" + password).getBytes(StandardCharsets.UTF_8));
+        }
+        return new Target(stripUserInfo(parsed).toString(), authorization);
+    }
+
+    private static URI stripUserInfo(URI uri) {
+        try {
+            return new URI(
+                    uri.getScheme(),
+                    null,
+                    uri.getHost(),
+                    uri.getPort(),
+                    uri.getPath(),
+                    uri.getQuery(),
+                    uri.getFragment());
+        } catch (URISyntaxException e) {
+            throw new IllegalArgumentException(e);
+        }
+    }
+
     private static String trimSlash(String host) {
         return host.endsWith("/") ? host.substring(0, host.length() - 1) : host;
+    }
+
+    record Target(String base, String authorization) {
     }
 }

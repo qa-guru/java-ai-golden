@@ -10,11 +10,11 @@ on:
   workflow_dispatch:
     inputs:
       run_live:
-        description: 'Live smoke on Box2 Ollama (qwen2.5-coder:7b)'
+        description: 'Live smoke on Box2 runner, GPU ollama.qa.guru (qwen2.5-coder:7b)'
         type: boolean
         default: true
       run_nightly:
-        description: 'Nightly protocol (red rows, 5 reps) on Box2 Ollama'
+        description: 'Nightly protocol (red rows, 5 reps) on Box2 runner, GPU ollama.qa.guru'
         type: boolean
         default: false
 
@@ -54,9 +54,9 @@ jobs:
           path: build/eval/**
           if-no-files-found: ignore
 
-  # Selectel Box2: Ollama on 127.0.0.1:11434, runner labels ollama+java-ai-golden.
+  # Box2 runner; inference https://ollama.qa.guru (Basic: secrets OLLAMA_USER / OLLAMA_PASSWORD).
   live:
-    name: live smoke (Box2 Ollama)
+    name: live smoke (Box2 runner, GPU ollama.qa.guru)
     needs: pr
     if: github.event_name == 'workflow_dispatch' && inputs.run_live
     runs-on: [self-hosted, ollama, java-ai-golden]
@@ -66,6 +66,9 @@ jobs:
       cancel-in-progress: false
     env:
       OLLAMA_TIMEOUT_MINUTES: '10'
+      OLLAMA_HOST: https://ollama.qa.guru
+      OLLAMA_USER: ${{ secrets.OLLAMA_USER }}
+      OLLAMA_PASSWORD: ${{ secrets.OLLAMA_PASSWORD }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
@@ -74,8 +77,13 @@ jobs:
           java-version: '21'
       - name: Ollama health (qwen2.5-coder:7b)
         run: |
-          curl -sf http://127.0.0.1:11434/api/tags | grep -F 'qwen2.5-coder:7b'
-          curl -sf http://127.0.0.1:11434/api/chat \
+          if [ -z "$OLLAMA_USER" ] || [ -z "$OLLAMA_PASSWORD" ]; then
+            echo "missing repo secrets OLLAMA_USER / OLLAMA_PASSWORD" >&2
+            exit 1
+          fi
+          curl -sf -u "$OLLAMA_USER:$OLLAMA_PASSWORD" https://ollama.qa.guru/api/tags \
+            | grep -F 'qwen2.5-coder:7b'
+          curl -sf -u "$OLLAMA_USER:$OLLAMA_PASSWORD" https://ollama.qa.guru/api/chat \
             -H 'Content-Type: application/json' \
             -d '{"model":"qwen2.5-coder:7b","stream":false,"messages":[{"role":"user","content":"ping"}],"options":{"num_predict":8}}' \
             >/dev/null
@@ -92,7 +100,7 @@ jobs:
           if-no-files-found: ignore
 
   nightly:
-    name: nightly live (Box2 Ollama)
+    name: nightly live (Box2 runner, GPU ollama.qa.guru)
     needs: pr
     if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_nightly)
     runs-on: [self-hosted, ollama, java-ai-golden]
@@ -102,6 +110,9 @@ jobs:
       cancel-in-progress: false
     env:
       OLLAMA_TIMEOUT_MINUTES: '10'
+      OLLAMA_HOST: https://ollama.qa.guru
+      OLLAMA_USER: ${{ secrets.OLLAMA_USER }}
+      OLLAMA_PASSWORD: ${{ secrets.OLLAMA_PASSWORD }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v5
@@ -110,8 +121,13 @@ jobs:
           java-version: '21'
       - name: Ollama health (qwen2.5-coder:7b)
         run: |
-          curl -sf http://127.0.0.1:11434/api/tags | grep -F 'qwen2.5-coder:7b'
-          curl -sf http://127.0.0.1:11434/api/chat \
+          if [ -z "$OLLAMA_USER" ] || [ -z "$OLLAMA_PASSWORD" ]; then
+            echo "missing repo secrets OLLAMA_USER / OLLAMA_PASSWORD" >&2
+            exit 1
+          fi
+          curl -sf -u "$OLLAMA_USER:$OLLAMA_PASSWORD" https://ollama.qa.guru/api/tags \
+            | grep -F 'qwen2.5-coder:7b'
+          curl -sf -u "$OLLAMA_USER:$OLLAMA_PASSWORD" https://ollama.qa.guru/api/chat \
             -H 'Content-Type: application/json' \
             -d '{"model":"qwen2.5-coder:7b","stream":false,"messages":[{"role":"user","content":"ping"}],"options":{"num_predict":8}}' \
             >/dev/null

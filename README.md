@@ -111,18 +111,18 @@ Exit codes (`eval.cli.ExitCode`): `0` success · `1` usage · `2` quality gate f
 
 ## CI
 
-GitHub-hosted `ubuntu-latest` has no Ollama, so live jobs there would always be infrastructure failures. Live work runs on the self-hosted Selectel Box2 runner (`selectel-java-ai-golden`, labels `ollama` + `java-ai-golden`), where Ollama already serves `qwen2.5-coder:7b` on `127.0.0.1:11434` from CPU.
+GitHub-hosted `ubuntu-latest` has no Ollama, so live jobs there would always be infrastructure failures. Live work runs on the self-hosted Selectel Box2 runner (`selectel-java-ai-golden`, labels `ollama` + `java-ai-golden`). Inference is GPU Ollama at [ollama.qa.guru](https://ollama.qa.guru) (`OLLAMA_HOST=https://ollama.qa.guru`) with Basic auth from repo secrets `OLLAMA_USER` / `OLLAMA_PASSWORD`. The mill model stays `qwen2.5-coder:7b` (not 30b). Local `evalLive` still defaults to `http://127.0.0.1:11434`. `OllamaClient` sends `Authorization: Basic` from those env vars (or URL userinfo) — Java `HttpClient` will not send Basic from `user:pass@url` on its own.
 
 | Trigger | Runs | LLM |
 |---|---|---|
 | Pull request ([`ci.yml`](.github/workflows/ci.yml)) | `test evalDeterministic evalRegression evalJudgeCalibration` | no |
 | Push to `main`, cron, dispatch | the same plus `evalHoldout evalHoldoutRegression` | no |
-| Live smoke (Box2, dispatch) | `evalLive`, then `evalLiveRegression -Dcandidate=$LATEST/run.json` | yes, red skipped |
-| Nightly (Box2, cron 02:00 MSK) | `evalNightly` (~30 min on CPU), then a compare-only regression | yes, red + 5 reps |
+| Live smoke (Box2 runner / GPU inference, dispatch) | `evalLive`, then `evalLiveRegression -Dcandidate=$LATEST/run.json` | yes, red skipped |
+| Nightly (Box2 runner / GPU inference, cron 02:00 MSK) | `evalNightly`, then a compare-only regression | yes, red + 5 reps |
 
 The holdout Gradle tasks are kept off pull requests so nobody tunes against the final split, but a broken holdout fixture still fails the PR: `./gradlew test` runs `HoldoutDatasetTest` (executor + gate vs `baselines/holdout-v1.json`, and the same CLI as `evalHoldoutRegression`). That is a file-contract gate, not a holdout score in the PR artifacts.
 
-Because CPU inference is slow, the regression step reuses `build/eval/LATEST/run.json` via `-Dcandidate=` instead of running the model twice. Live jobs set `OLLAMA_TIMEOUT_MINUTES=10` (the mill default is 3) and must carry both runner labels — the other Box2 runners have no model installed.
+The regression step reuses `build/eval/LATEST/run.json` via `-Dcandidate=` instead of running the model twice. Live jobs set `OLLAMA_TIMEOUT_MINUTES=10` (the mill default is 3) and must carry both runner labels — the other Box2 runners are not this mill.
 
 ## Layout
 
