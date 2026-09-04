@@ -7,6 +7,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -87,6 +88,8 @@ class BaselineIoTest {
         assertEquals(10, run.metrics().hallucinationRate().hits());
         assertEquals(10, run.metrics().hallucinationRate().total());
         assertEquals("LIVE", run.configuration().mode());
+        assertEquals(EvalConfig.DEFAULT_MODEL, run.model());
+        assertEquals(EvalConfig.DEFAULT_JUDGE_MODEL, run.judgeModel());
         assertEquals(5, run.configuration().repetitions());
         assertEquals(true, run.configuration().includeRed());
         assertEquals("ollama", run.configuration().provider());
@@ -95,6 +98,22 @@ class BaselineIoTest {
         assertEquals(GoldenReader.datasetHash(), run.datasetHash());
         assertEquals(64, run.packHash().length());
         assertEquals(eval.pack.PackFiles.contentHash(), run.packHash());
+    }
+
+    @Test
+    void committedHistoryRecordsNightlyJudgeModel() throws Exception {
+        EvalRun nightly = ReportIo.readRun(Path.of("baselines/nightly-generation-v1.json"));
+        boolean found = false;
+        for (String line : Files.readAllLines(Path.of("baselines/history.jsonl"))) {
+            if (!line.contains("\"runId\":\"" + nightly.runId() + "\"")) {
+                continue;
+            }
+            found = true;
+            assertTrue(
+                    line.contains("\"judgeModel\":\"" + EvalConfig.DEFAULT_JUDGE_MODEL + "\""),
+                    line);
+        }
+        assertTrue(found, "history.jsonl must record nightly run " + nightly.runId());
     }
 
     @Test

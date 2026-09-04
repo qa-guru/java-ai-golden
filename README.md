@@ -99,7 +99,7 @@ The gate has two flavours. On deterministic runs it applies the absolute `thresh
 
 Re-capturing a baseline (capture runs never pass `--gate`, and `--save-baseline` refuses to overwrite without `--force-save-baseline`). Changing `judgeModel` invalidates live/nightly comparison until both snapshots are recaptured. Do not `--force-save-baseline` a run with infrastructure `ERROR` attempts.
 
-The live snapshot was recaptured with generator `qwen2.5-coder:7b` and judge `qwen3-coder:30b` (judge 3/3 accept on the skip-red smoke). The committed **nightly** snapshot is still the 7b-as-judge capture (**25/40**, hallucination 10/10) — recapture it on Box2 GPU (`evalNightly -DsaveBaseline=… -DforceSaveBaseline=true`) after `qwen3-coder:30b` is on [ollama.qa.guru](https://ollama.qa.guru). Local 7b+30b swapping can knock Ollama over; do not replace nightly with an error run.
+Live and nightly snapshots were recaptured against [ollama.qa.guru](https://ollama.qa.guru) with generator `qwen2.5-coder:7b` and judge `qwen3-coder:30b` (live skip-red judge 3/3; nightly **25/40** contract, judge 15/25, hallucination 10/10, 0 ERROR). Do not install Ollama or pull models on Box2. Local 7b+30b swapping can knock a laptop Ollama over; do not replace a snapshot with an error run.
 
 ```bash
 ./gradlew run --args='--mode=live --judge=true --artifacts=always \
@@ -111,7 +111,7 @@ Exit codes (`eval.cli.ExitCode`): `0` success · `1` usage · `2` quality gate f
 
 ## CI
 
-GitHub-hosted `ubuntu-latest` has no Ollama, so live jobs there would always be infrastructure failures. Live work runs on the self-hosted Selectel Box2 runner (`selectel-java-ai-golden`, labels `ollama` + `java-ai-golden`). Inference is GPU Ollama at [ollama.qa.guru](https://ollama.qa.guru) (`OLLAMA_HOST=https://ollama.qa.guru`) with Basic auth from repo secrets `OLLAMA_USER` / `OLLAMA_PASSWORD`. The mill **generator** stays `qwen2.5-coder:7b`; the **judge** is `qwen3-coder:30b` (not a second generator). Local `evalLive` still defaults to `http://127.0.0.1:11434`. `OllamaClient` sends `Authorization: Basic` from those env vars (or URL userinfo) — Java `HttpClient` will not send Basic from `user:pass@url` on its own.
+GitHub-hosted `ubuntu-latest` has no Ollama, so live jobs there would always be infrastructure failures. Live work runs on the self-hosted Selectel Box2 runner (`selectel-java-ai-golden`, labels `ollama` + `java-ai-golden`). Box2 is the job host only: do not install Ollama or pull models there. Inference is GPU Ollama at [ollama.qa.guru](https://ollama.qa.guru) (`OLLAMA_HOST=https://ollama.qa.guru`) with Basic auth from repo secrets `OLLAMA_USER` / `OLLAMA_PASSWORD`. The mill **generator** stays `qwen2.5-coder:7b`; the **judge** is `qwen3-coder:30b` (not a second generator). Local `evalLive` still defaults to `http://127.0.0.1:11434`. `OllamaClient` sends `Authorization: Basic` from those env vars (or URL userinfo) — Java `HttpClient` will not send Basic from `user:pass@url` on its own.
 
 | Trigger | Runs | LLM |
 |---|---|---|
@@ -165,7 +165,7 @@ Comparing several models on the same dataset, graders, and attempt count:
 - Do not tune prompts, graders, or the judge against the holdout split.
 - Do not replace a deterministic check with a judge call.
 - Do not treat `SKIPPED` as pass or `ERROR` as fail.
-- Do not add Ollama to the GitHub-hosted job, or a live job without the Box2 runner labels.
+- Do not install Ollama or pull models on Box2; the runner only calls [ollama.qa.guru](https://ollama.qa.guru).
 - Do not commit re-recorded fixtures (`-DwriteFixtures=true`) without reading what the model actually wrote.
 
 ## Docs

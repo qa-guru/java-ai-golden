@@ -99,7 +99,7 @@ Gate бывает двух видов. На детерминированных �
 
 Перезапись baseline (у capture-прогонов нет `--gate`, а `--save-baseline` не перетирает файл без `--force-save-baseline`). Смена `judgeModel` делает live/nightly сравнение невалидным, пока оба снимка не пересняты. Не `--force-save-baseline` прогон с инфраструктурными `ERROR`.
 
-Live-снимок переснят: генератор `qwen2.5-coder:7b`, судья `qwen3-coder:30b` (на skip-red смоуке судья 3/3). Закоммиченный **nightly**-снимок всё ещё со судьёй 7b (**25/40**, hallucination 10/10) — переснять на GPU Box2 после того, как `qwen3-coder:30b` будет на [ollama.qa.guru](https://ollama.qa.guru). Локальный своп 7b+30b может уронить Ollama; error-прогон в nightly не класть.
+Live и nightly пересняты против [ollama.qa.guru](https://ollama.qa.guru): генератор `qwen2.5-coder:7b`, судья `qwen3-coder:30b` (live skip-red судья 3/3; nightly **25/40** контракт, судья 15/25, hallucination 10/10, 0 ERROR). На Box2 Ollama и веса не ставить. Локальный своп 7b+30b может уронить ноутбучную Ollama; error-прогон в снимок не класть.
 
 ```bash
 ./gradlew run --args='--mode=live --judge=true --artifacts=always \
@@ -111,7 +111,7 @@ Live-снимок переснят: генератор `qwen2.5-coder:7b`, су�
 
 ## CI
 
-На GitHub-раннере `ubuntu-latest` нет Ollama, поэтому live там всегда был бы инфраструктурным падением. Live крутится на self-hosted раннере Selectel Box2 (`selectel-java-ai-golden`, лейблы `ollama` + `java-ai-golden`). Инференс — GPU Ollama на [ollama.qa.guru](https://ollama.qa.guru) (`OLLAMA_HOST=https://ollama.qa.guru`), Basic из секретов репо `OLLAMA_USER` / `OLLAMA_PASSWORD`. **Генератор** mill — `qwen2.5-coder:7b`; **судья** — `qwen3-coder:30b` (не второй генератор). Локальный `evalLive` по-прежнему `http://127.0.0.1:11434`. `OllamaClient` шлёт `Authorization: Basic` из этих env (или userinfo в URL) — Java `HttpClient` сам Basic из `user:pass@url` не ставит.
+На GitHub-раннере `ubuntu-latest` нет Ollama, поэтому live там всегда был бы инфраструктурным падением. Live крутится на self-hosted раннере Selectel Box2 (`selectel-java-ai-golden`, лейблы `ollama` + `java-ai-golden`). Box2 — только хост джобы: Ollama и веса туда не ставить. Инференс — GPU Ollama на [ollama.qa.guru](https://ollama.qa.guru) (`OLLAMA_HOST=https://ollama.qa.guru`), Basic из секретов репо `OLLAMA_USER` / `OLLAMA_PASSWORD`. **Генератор** mill — `qwen2.5-coder:7b`; **судья** — `qwen3-coder:30b` (не второй генератор). Локальный `evalLive` по-прежнему `http://127.0.0.1:11434`. `OllamaClient` шлёт `Authorization: Basic` из этих env (или userinfo в URL) — Java `HttpClient` сам Basic из `user:pass@url` не ставит.
 
 | Триггер | Что гоняет | LLM |
 |---|---|---|
@@ -166,6 +166,7 @@ Gradle-таски holdout убраны с pull request, чтобы под фин
 - Не заменять детерминированную проверку вызовом судьи.
 - Не считать `SKIPPED` за pass, а `ERROR` за fail.
 - Не ставить Ollama в GitHub-hosted джобу и не заводить live-джобу без лейблов раннера Box2.
+- Не ставить Ollama и не pull моделей на Box2; раннер только ходит на [ollama.qa.guru](https://ollama.qa.guru).
 - Не коммитить перезаписанные фикстуры (`-DwriteFixtures=true`), не прочитав, что там на самом деле написала модель.
 
 ## Документация
