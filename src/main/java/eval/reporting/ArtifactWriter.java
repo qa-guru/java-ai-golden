@@ -62,6 +62,16 @@ public final class ArtifactWriter {
             }
         }
         if (config.saveBaselinePath() != null) {
+            if (run.casesError() > 0 || run.attemptsError() > 0) {
+                throw new IllegalStateException(
+                        "refusing to save baseline "
+                                + config.saveBaselinePath()
+                                + ": run has infrastructure errors ("
+                                + run.casesError()
+                                + " cases / "
+                                + run.attemptsError()
+                                + " attempts). Recapture only a quality run.");
+            }
             if (Files.isRegularFile(config.saveBaselinePath()) && !config.forceSaveBaseline()) {
                 throw new IllegalStateException(
                         config.saveBaselinePath()

@@ -3,7 +3,7 @@
 Слот оценивает **генерацию автотеста**, не логин приложения.  
 Канон негатива — [лаборатория 36](https://lab.qa.guru/36-login-lab.html#c1s1r1g1a1uc): `submitExpectingError`, «Wrong login or password», не `fillAndSubmitForm`.
 
-Эталон Selenide и takeaway сюда не копировать. Java 21, Gradle Wrapper в этой папке. Live — локальный Ollama, модель `qwen2.5-coder:7b`.
+Эталон Selenide и takeaway сюда не копировать. Java 21, Gradle Wrapper в этой папке. Live — локальный Ollama: генератор `qwen2.5-coder:7b`, судья `qwen3-coder:30b`. На камеру без 30b: `-DjudgeModel=qwen2.5-coder:7b`.
 
 ```bash
 git clone https://github.com/qa-guru/java-ai-golden.git
@@ -25,10 +25,10 @@ cd java-ai-golden
 ### 2. Live смоук
 
 ```bash
-./gradlew test -Dlive=true -DincludeTags=live
+./gradlew test -Dlive=true -DincludeTags=live -DjudgeModel=qwen2.5-coder:7b
 ```
 
-~20–40 с. В логе: `RETRIEVE` (ретривер) → `LIVE` (генератор) → `JUDGE` (судья).  
+~20–40 с (судья на камере = 7b, чтобы уложиться без `qwen3-coder:30b`). В логе: `RETRIEVE` (ретривер) → `LIVE` (генератор) → `JUDGE` (судья).  
 `mixed-layer`, `hallucinate-*` — **SKIP** (это не баг: красный 7b на шаге 3).
 
 Открыть `build/live-out/login-wrong-password-e2e.out.md`: `submitExpectingError`, нет `@Step` на методе.
@@ -36,7 +36,7 @@ cd java-ai-golden
 ### 3. Красный 7b = успех eval
 
 ```bash
-./gradlew test -Dlive=true -DincludeTags=live -Dred=true
+./gradlew test -Dlive=true -DincludeTags=live -Dred=true -DjudgeModel=qwen2.5-coder:7b
 ```
 
 | id | Промпт просит | 7b сейчас |
@@ -71,7 +71,7 @@ e2e id = история формы. HTTP 401 — в `login-401-api` и в `must_
 | `-Dlive=true -DincludeTags=live` | generate + контракт + судья |
 | `-Dred=true` | ряды, где 7b сейчас красный |
 | `-Djudge=false` | только контракт, без второго вызова LLM |
-| `-Dmodel=…` / `-DjudgeModel=…` | другая модель |
+| `-Dmodel=…` / `-DjudgeModel=…` | другая модель (канон: генератор 7b, судья `qwen3-coder:30b`) |
 | `-DwriteFixtures=true` | перезаписать `fixtures/` ответом модели — не коммитить с эхом 7b |
 | `-Dprovider=openai` | тот же factory, что у пайплайна; по умолчанию Ollama |
 
@@ -113,6 +113,7 @@ e2e id = история формы. HTTP 401 — в `login-401-api` и в `must_
 - Не смешивать форму и JSON 401 в одном тесте.
 - Не кодировать HTTP-статус в id e2e-ряда.
 - Не считать skip `mixed-layer` / `hallucinate-*` на смоуке дырой; не считать красный 7b на `-Dred` провалом курса.
+- Не ставить генератор на `qwen3-coder:30b`: этот тег — судья mill, не SUT.
 
 ## Eval pipeline (не на камеру)
 
@@ -122,6 +123,6 @@ e2e id = история формы. HTTP 401 — в `login-401-api` и в `must_
 ./gradlew test evalDeterministic evalRegression evalJudgeCalibration
 ```
 
-Holdout на PR не гонять (`evalHoldout` — после merge / cron / локальный финал). `evalDeterministic` = 100% по **фикстурам**, не оценка живой 7b. Live 1-shot и nightly — локально **или** self-hosted Box2 (`workflow_dispatch` / cron): один прогон модели, regression — `--candidate` на тот же `run.json`, не второй live.
+Holdout на PR не гонять (`evalHoldout` — после merge / cron / локальный финал). `evalDeterministic` = 100% по **фикстурам**, не оценка живой 7b. Live 1-shot и nightly — локально **или** self-hosted Box2 (`workflow_dispatch` / cron): генератор 7b, судья `qwen3-coder:30b`; regression — `--candidate` на тот же `run.json`, не второй live.
 
 Семантика PASS/FAIL/ERROR/SKIPPED, hash, gate, holdout — [docs/evaluation-methodology.md](docs/evaluation-methodology.md).

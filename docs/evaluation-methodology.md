@@ -226,6 +226,8 @@ Live: `liveThresholds` delta vs a **live** baseline file (`allowedRegression = 0
 
 **SOFT** (LLM judge): clarity, readability, completeness, style, maintainability.
 
+Production live pins two tags: generator `qwen2.5-coder:7b` (SUT), judge `qwen3-coder:30b`. Empty `judgeModel` still copies the generator. Changing the judge tag is `COMPARISON_INVALID` against the previous live/nightly snapshot until those files are recaptured. `judgeAcceptRate` stays ungated.
+
 Contract outranks the judge. Soft scores cannot wash out a forbidden citation.
 
 ## Judge calibration

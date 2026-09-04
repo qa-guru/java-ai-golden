@@ -85,7 +85,7 @@ tasks.register('evalRegression', JavaExec) {
 
 tasks.register('evalLive', JavaExec) {
     group = 'eval'
-    description = 'Limited live eval (Ollama). Skips red 7b rows unless -Dred=true'
+    description = 'Limited live eval (Ollama). Generator 7b, judge qwen3-coder:30b. Skips red 7b rows unless -Dred=true'
     classpath = evalClasspath
     mainClass = 'eval.cli.EvalMain'
     workingDir = layout.projectDirectory
@@ -159,7 +159,7 @@ tasks.register('evalJudgeCalibration', JavaExec) {
 
 tasks.register('evalJudgeCalibrationLive', JavaExec) {
     group = 'eval'
-    description = 'Live judge calibration against labeled candidates (local Ollama; not CI)'
+    description = 'Live judge calibration against labeled candidates (judge qwen3-coder:30b; local Ollama; not CI)'
     classpath = evalClasspath
     mainClass = 'eval.cli.EvalMain'
     workingDir = layout.projectDirectory

@@ -28,7 +28,7 @@ cd java-ai-golden
 ./gradlew evalRegression     # diff против baselines/generation-v1.json
 ```
 
-С локальной Ollama (модель по умолчанию `qwen2.5-coder:7b`):
+С локальной Ollama (генератор `qwen2.5-coder:7b`, судья `qwen3-coder:30b`):
 
 ```bash
 ./gradlew evalLive            # 5 не-красных goldens, одна попытка, судья включён
@@ -97,7 +97,9 @@ cd java-ai-golden
 
 Gate бывает двух видов. На детерминированных прогонах работают абсолютные `thresholds` из `eval.json` (100% по фикстурам, 0% галлюцинаций). На live-прогонах работает `liveThresholds.allowedRegression = 0` против live-baseline: любое падение жёсткой метрики — fail, равенство — pass, а отсутствующий или несовпадающий по протоколу baseline **валит** gate, а не проскакивает молча. `judgeAcceptRate` репортится, но не гейтится.
 
-Перезапись baseline (у capture-прогонов нет `--gate`, а `--save-baseline` не перетирает файл без `--force-save-baseline`):
+Перезапись baseline (у capture-прогонов нет `--gate`, а `--save-baseline` не перетирает файл без `--force-save-baseline`). Смена `judgeModel` делает live/nightly сравнение невалидным, пока оба снимка не пересняты. Не `--force-save-baseline` прогон с инфраструктурными `ERROR`.
+
+Live-снимок переснят: генератор `qwen2.5-coder:7b`, судья `qwen3-coder:30b` (на skip-red смоуке судья 3/3). Закоммиченный **nightly**-снимок всё ещё со судьёй 7b (**25/40**, hallucination 10/10) — переснять на GPU Box2 после того, как `qwen3-coder:30b` будет на [ollama.qa.guru](https://ollama.qa.guru). Локальный своп 7b+30b может уронить Ollama; error-прогон в nightly не класть.
 
 ```bash
 ./gradlew run --args='--mode=live --judge=true --artifacts=always \
@@ -105,13 +107,11 @@ Gate бывает двух видов. На детерминированных �
 ./gradlew evalNightly -DsaveBaseline=baselines/nightly-generation-v1.json -DforceSaveBaseline=true
 ```
 
-Для ориентира: закоммиченный nightly-снимок — **25/40** на `qwen2.5-coder:7b`, красные ряды падают все пять попыток, hallucination rate 10/10. Так выглядит 7b, а не сломанный gate.
-
 Коды выхода (`eval.cli.ExitCode`): `0` успех · `1` usage · `2` gate не пройден (в том числе пустой или полностью пропущенный прогон) · `3` инфраструктура · `4` сравнение невалидно. Если все попытки упали из-за лежащей Ollama, процесс выходит с 3, а не рапортует 0% качества модели.
 
 ## CI
 
-На GitHub-раннере `ubuntu-latest` нет Ollama, поэтому live там всегда был бы инфраструктурным падением. Live крутится на self-hosted раннере Selectel Box2 (`selectel-java-ai-golden`, лейблы `ollama` + `java-ai-golden`). Инференс — GPU Ollama на [ollama.qa.guru](https://ollama.qa.guru) (`OLLAMA_HOST=https://ollama.qa.guru`), Basic из секретов репо `OLLAMA_USER` / `OLLAMA_PASSWORD`. Модель mill — `qwen2.5-coder:7b` (не 30b). Локальный `evalLive` по-прежнему `http://127.0.0.1:11434`. `OllamaClient` шлёт `Authorization: Basic` из этих env (или userinfo в URL) — Java `HttpClient` сам Basic из `user:pass@url` не ставит.
+На GitHub-раннере `ubuntu-latest` нет Ollama, поэтому live там всегда был бы инфраструктурным падением. Live крутится на self-hosted раннере Selectel Box2 (`selectel-java-ai-golden`, лейблы `ollama` + `java-ai-golden`). Инференс — GPU Ollama на [ollama.qa.guru](https://ollama.qa.guru) (`OLLAMA_HOST=https://ollama.qa.guru`), Basic из секретов репо `OLLAMA_USER` / `OLLAMA_PASSWORD`. **Генератор** mill — `qwen2.5-coder:7b`; **судья** — `qwen3-coder:30b` (не второй генератор). Локальный `evalLive` по-прежнему `http://127.0.0.1:11434`. `OllamaClient` шлёт `Authorization: Basic` из этих env (или userinfo в URL) — Java `HttpClient` сам Basic из `user:pass@url` не ставит.
 
 | Триггер | Что гоняет | LLM |
 |---|---|---|
@@ -140,7 +140,7 @@ Gradle-таски holdout убраны с pull request, чтобы под фин
 
 ## Конфигурация
 
-Любое поле `eval.json` перекрывается системным свойством: `model`, `judgeModel`, `judge`, `repetitions`, `red`, `gate`, `outputDir`, `baseline`, `live`, `provider`, `saveBaseline`, `forceSaveBaseline`.
+Любое поле `eval.json` перекрывается системным свойством: `model`, `judgeModel`, `judge`, `repetitions`, `red`, `gate`, `outputDir`, `baseline`, `live`, `provider`, `saveBaseline`, `forceSaveBaseline`. По умолчанию: генератор `qwen2.5-coder:7b`, судья `qwen3-coder:30b`.
 
 Провайдер по умолчанию — Ollama. Любой OpenAI-совместимый HTTP (LM Studio, vLLM, OpenAI) тоже работает:
 
@@ -160,6 +160,8 @@ Gradle-таски holdout убраны с pull request, чтобы под фин
 
 - Не сравнивать прогоны с разными версиями датасета и фикстурный baseline с live-прогоном.
 - Не поднимать `liveThresholds.allowedRegression`, чтобы покрасить 7b в зелёный: красные ряды существуют именно чтобы показывать её падения.
+- Не ставить **генератор** на 30b: `qwen3-coder:30b` — судья. Пустой `judgeModel` копирует генератор (self-preference).
+- Не `--force-save-baseline` прогон с инфраструктурными `ERROR`.
 - Не тюнить промпт, грейдер и судью под holdout-сплит.
 - Не заменять детерминированную проверку вызовом судьи.
 - Не считать `SKIPPED` за pass, а `ERROR` за fail.

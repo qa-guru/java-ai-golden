@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       run_live:
-        description: 'Live smoke on Box2 runner, GPU ollama.qa.guru (qwen2.5-coder:7b)'
+        description: 'Live smoke on Box2 runner, GPU ollama.qa.guru (gen 7b, judge qwen3-coder:30b)'
         type: boolean
         default: true
       run_nightly:
@@ -109,18 +109,26 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - name: Ollama health (qwen2.5-coder:7b)
+      - name: Ollama health (generator 7b, judge qwen3-coder:30b)
+        env:
+          GEN_MODEL: qwen2.5-coder:7b
+          JUDGE_MODEL: qwen3-coder:30b
         run: |
           if [ -z "$OLLAMA_USER" ] || [ -z "$OLLAMA_PASSWORD" ]; then
             echo "missing repo secrets OLLAMA_USER / OLLAMA_PASSWORD" >&2
             exit 1
           fi
-          curl -sf -u "$OLLAMA_USER:$OLLAMA_PASSWORD" https://ollama.qa.guru/api/tags \
-            | grep -F 'qwen2.5-coder:7b'
-          curl -sf -u "$OLLAMA_USER:$OLLAMA_PASSWORD" https://ollama.qa.guru/api/chat \
-            -H 'Content-Type: application/json' \
-            -d '{"model":"qwen2.5-coder:7b","stream":false,"messages":[{"role":"user","content":"ping"}],"options":{"num_predict":8}}' \
-            >/dev/null
+          tags="$(curl -sf -u "$OLLAMA_USER:$OLLAMA_PASSWORD" https://ollama.qa.guru/api/tags)"
+          echo "$tags" | grep -F "$GEN_MODEL"
+          echo "$tags" | grep -F "$JUDGE_MODEL"
+          ping_model() {
+            curl -sf --max-time 300 -u "$OLLAMA_USER:$OLLAMA_PASSWORD" https://ollama.qa.guru/api/chat \
+              -H 'Content-Type: application/json' \
+              -d "{\"model\":\"$1\",\"stream\":false,\"messages\":[{\"role\":\"user\",\"content\":\"ping\"}],\"options\":{\"num_predict\":8}}" \
+              >/dev/null
+          }
+          ping_model "$GEN_MODEL"
+          ping_model "$JUDGE_MODEL"
       - name: Live smoke
         run: ./gradlew evalLive --console=plain
       - name: Live regression vs committed baseline
@@ -153,18 +161,26 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - name: Ollama health (qwen2.5-coder:7b)
+      - name: Ollama health (generator 7b, judge qwen3-coder:30b)
+        env:
+          GEN_MODEL: qwen2.5-coder:7b
+          JUDGE_MODEL: qwen3-coder:30b
         run: |
           if [ -z "$OLLAMA_USER" ] || [ -z "$OLLAMA_PASSWORD" ]; then
             echo "missing repo secrets OLLAMA_USER / OLLAMA_PASSWORD" >&2
             exit 1
           fi
-          curl -sf -u "$OLLAMA_USER:$OLLAMA_PASSWORD" https://ollama.qa.guru/api/tags \
-            | grep -F 'qwen2.5-coder:7b'
-          curl -sf -u "$OLLAMA_USER:$OLLAMA_PASSWORD" https://ollama.qa.guru/api/chat \
-            -H 'Content-Type: application/json' \
-            -d '{"model":"qwen2.5-coder:7b","stream":false,"messages":[{"role":"user","content":"ping"}],"options":{"num_predict":8}}' \
-            >/dev/null
+          tags="$(curl -sf -u "$OLLAMA_USER:$OLLAMA_PASSWORD" https://ollama.qa.guru/api/tags)"
+          echo "$tags" | grep -F "$GEN_MODEL"
+          echo "$tags" | grep -F "$JUDGE_MODEL"
+          ping_model() {
+            curl -sf --max-time 300 -u "$OLLAMA_USER:$OLLAMA_PASSWORD" https://ollama.qa.guru/api/chat \
+              -H 'Content-Type: application/json' \
+              -d "{\"model\":\"$1\",\"stream\":false,\"messages\":[{\"role\":\"user\",\"content\":\"ping\"}],\"options\":{\"num_predict\":8}}" \
+              >/dev/null
+          }
+          ping_model "$GEN_MODEL"
+          ping_model "$JUDGE_MODEL"
       - name: Nightly protocol (red, 5 reps)
         run: ./gradlew evalNightly --console=plain
       - name: Nightly regression vs committed baseline

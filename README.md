@@ -28,7 +28,7 @@ cd java-ai-golden
 ./gradlew evalRegression     # diff vs baselines/generation-v1.json
 ```
 
-With a local Ollama (default model `qwen2.5-coder:7b`):
+With a local Ollama (generator `qwen2.5-coder:7b`, judge `qwen3-coder:30b`):
 
 ```bash
 ./gradlew evalLive            # 5 non-red goldens, 1 attempt, judge on
@@ -97,7 +97,9 @@ Comparison requires the same `datasetVersion`, `datasetHash`, pack hash, mode, `
 
 The gate has two flavours. On deterministic runs it applies the absolute `thresholds` from `eval.json` (100% on fixtures, 0% hallucination). On live runs it applies `liveThresholds.allowedRegression = 0` against a live baseline: any drop in a hard rate fails, equal rates pass, and a missing or protocol-mismatched baseline **fails** rather than silently passing. Judge accept rate is reported but not gated.
 
-Re-capturing a baseline (capture runs never pass `--gate`, and `--save-baseline` refuses to overwrite without `--force-save-baseline`):
+Re-capturing a baseline (capture runs never pass `--gate`, and `--save-baseline` refuses to overwrite without `--force-save-baseline`). Changing `judgeModel` invalidates live/nightly comparison until both snapshots are recaptured. Do not `--force-save-baseline` a run with infrastructure `ERROR` attempts.
+
+The live snapshot was recaptured with generator `qwen2.5-coder:7b` and judge `qwen3-coder:30b` (judge 3/3 accept on the skip-red smoke). The committed **nightly** snapshot is still the 7b-as-judge capture (**25/40**, hallucination 10/10) — recapture it on Box2 GPU (`evalNightly -DsaveBaseline=… -DforceSaveBaseline=true`) after `qwen3-coder:30b` is on [ollama.qa.guru](https://ollama.qa.guru). Local 7b+30b swapping can knock Ollama over; do not replace nightly with an error run.
 
 ```bash
 ./gradlew run --args='--mode=live --judge=true --artifacts=always \
@@ -105,13 +107,11 @@ Re-capturing a baseline (capture runs never pass `--gate`, and `--save-baseline`
 ./gradlew evalNightly -DsaveBaseline=baselines/nightly-generation-v1.json -DforceSaveBaseline=true
 ```
 
-For reference, the committed nightly snapshot is **25/40** on `qwen2.5-coder:7b`: the red rows fail all five attempts, hallucination rate 10/10. That is what a 7b model looks like, not a broken gate.
-
 Exit codes (`eval.cli.ExitCode`): `0` success · `1` usage · `2` quality gate failed (including an empty or fully skipped run) · `3` infrastructure failure · `4` comparison invalid. If every attempt errors because Ollama is down, the run exits 3 instead of reporting 0% model quality.
 
 ## CI
 
-GitHub-hosted `ubuntu-latest` has no Ollama, so live jobs there would always be infrastructure failures. Live work runs on the self-hosted Selectel Box2 runner (`selectel-java-ai-golden`, labels `ollama` + `java-ai-golden`). Inference is GPU Ollama at [ollama.qa.guru](https://ollama.qa.guru) (`OLLAMA_HOST=https://ollama.qa.guru`) with Basic auth from repo secrets `OLLAMA_USER` / `OLLAMA_PASSWORD`. The mill model stays `qwen2.5-coder:7b` (not 30b). Local `evalLive` still defaults to `http://127.0.0.1:11434`. `OllamaClient` sends `Authorization: Basic` from those env vars (or URL userinfo) — Java `HttpClient` will not send Basic from `user:pass@url` on its own.
+GitHub-hosted `ubuntu-latest` has no Ollama, so live jobs there would always be infrastructure failures. Live work runs on the self-hosted Selectel Box2 runner (`selectel-java-ai-golden`, labels `ollama` + `java-ai-golden`). Inference is GPU Ollama at [ollama.qa.guru](https://ollama.qa.guru) (`OLLAMA_HOST=https://ollama.qa.guru`) with Basic auth from repo secrets `OLLAMA_USER` / `OLLAMA_PASSWORD`. The mill **generator** stays `qwen2.5-coder:7b`; the **judge** is `qwen3-coder:30b` (not a second generator). Local `evalLive` still defaults to `http://127.0.0.1:11434`. `OllamaClient` sends `Authorization: Basic` from those env vars (or URL userinfo) — Java `HttpClient` will not send Basic from `user:pass@url` on its own.
 
 | Trigger | Runs | LLM |
 |---|---|---|
@@ -140,7 +140,7 @@ The pipeline reuses the mill graders through `ContractAssertions` rather than re
 
 ## Configuration
 
-Anything in `eval.json` can be overridden with a system property: `model`, `judgeModel`, `judge`, `repetitions`, `red`, `gate`, `outputDir`, `baseline`, `live`, `provider`, `saveBaseline`, `forceSaveBaseline`.
+Anything in `eval.json` can be overridden with a system property: `model`, `judgeModel`, `judge`, `repetitions`, `red`, `gate`, `outputDir`, `baseline`, `live`, `provider`, `saveBaseline`, `forceSaveBaseline`. Defaults: generator `qwen2.5-coder:7b`, judge `qwen3-coder:30b`.
 
 Default provider is Ollama. Any OpenAI-compatible HTTP endpoint (LM Studio, vLLM, OpenAI) works too:
 
@@ -160,6 +160,8 @@ Comparing several models on the same dataset, graders, and attempt count:
 
 - Do not compare runs from different dataset versions, or a fixture baseline against a live run.
 - Do not raise `liveThresholds.allowedRegression` to make 7b look green; the red rows exist to show it failing.
+- Do not point the **generator** at 30b; `qwen3-coder:30b` is the judge. Empty `judgeModel` copies the generator (self-preference).
+- Do not `--force-save-baseline` a run with infrastructure `ERROR` attempts.
 - Do not tune prompts, graders, or the judge against the holdout split.
 - Do not replace a deterministic check with a judge call.
 - Do not treat `SKIPPED` as pass or `ERROR` as fail.

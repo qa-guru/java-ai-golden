@@ -1,6 +1,6 @@
 # Example eval report (deterministic, generation-v1)
 
-This is a **fixture** eval: every recorded golden still matches the contract and retriever oracle. It is not a live-model score. `Commit` and latency vary per machine; labels match `ConsoleReporter`.
+This is a **fixture** eval: every recorded golden still matches the contract and retriever oracle. It is not a live-model score. Live mill uses generator `qwen2.5-coder:7b` and judge `qwen3-coder:30b`; fixtures have the judge off. `Commit` and latency vary per machine; labels match `ConsoleReporter`.
 
 ```
 AI EVAL

@@ -21,9 +21,12 @@ public final class EvalConfig {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
+    public static final String DEFAULT_MODEL = "qwen2.5-coder:7b";
+    public static final String DEFAULT_JUDGE_MODEL = "qwen3-coder:30b";
+
     private EvalMode mode = EvalMode.DETERMINISTIC;
-    private String model = "qwen2.5-coder:7b";
-    private String judgeModel;
+    private String model = DEFAULT_MODEL;
+    private String judgeModel = DEFAULT_JUDGE_MODEL;
     private boolean judgeEnabled = true;
     private int repetitions = 1;
     private Path outputDir = Path.of("build/eval");

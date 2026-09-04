@@ -17,9 +17,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @Tag("eval")
@@ -29,6 +33,35 @@ class EvalExecutorTest {
 
     @TempDir
     Path tmp;
+
+    @Test
+    void defaultLivePinsSeparateGeneratorAndJudge() {
+        EvalConfig config = EvalConfig.resolve(new String[]{"--mode=live"});
+        assertEquals(EvalConfig.DEFAULT_MODEL, config.model());
+        assertEquals(EvalConfig.DEFAULT_JUDGE_MODEL, config.judgeModel());
+        assertNotEquals(config.model(), config.judgeModel());
+    }
+
+    @Test
+    void liveJudgeCallsPinnedJudgeModelNotGenerator() {
+        EvalConfig config = EvalConfig.resolve(new String[]{
+                "--mode=live",
+                "--model=gen-under-test",
+                "--judgeModel=judge-model",
+                "--judge=true",
+                "--output=" + tmp,
+                "--artifacts=never"
+        });
+        List<String> models = new ArrayList<>();
+        ModelRunner runner = (system, user, model) -> {
+            models.add(model);
+            return new ModelResponse(fixtureFor(user), TokenUsage.of(1, 1), 8);
+        };
+        new EvalExecutor(config, runner).execute();
+        Set<String> unique = new LinkedHashSet<>(models);
+        assertTrue(unique.contains("gen-under-test"), models.toString());
+        assertTrue(unique.contains("judge-model"), models.toString());
+    }
 
     @Test
     void deterministicRunPassesAllFixturesAndRetrieval() {

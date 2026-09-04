@@ -38,6 +38,17 @@ class ConfigFingerprintTest {
     }
 
     @Test
+    void judgeModelChangeChangesFingerprintWhenJudgeIsOn() {
+        RunConfiguration a = new RunConfiguration(
+                "LIVE", "qwen-a", "judge-a", true, 1, false, "FAILURE", "build", "ollama");
+        RunConfiguration b = new RunConfiguration(
+                "LIVE", "qwen-a", "judge-b", true, 1, false, "FAILURE", "build", "ollama");
+        assertNotEquals(
+                ConfigFingerprint.of(a, "generation-v1", "h", "pack-v1", "exp-1", "abc"),
+                ConfigFingerprint.of(b, "generation-v1", "h", "pack-v1", "exp-1", "abc"));
+    }
+
+    @Test
     void deterministicRunCarriesFingerprint() {
         EvalRun run = new EvalExecutor(EvalConfig.resolve(new String[]{
                 "--mode=deterministic", "--artifacts=never", "--output=build/eval-fp-test"

@@ -1,6 +1,7 @@
 package eval.reporting;
 
 import eval.domain.EvalRun;
+import eval.execution.EvalConfig;
 import eval.generation.GoldenReader;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
@@ -57,6 +58,8 @@ class BaselineIoTest {
         assertTrue(run.metrics().overallPassRate().defined());
         assertEquals(1.0, run.metrics().overallPassRate().value(), 1e-12);
         assertEquals("LIVE", run.configuration().mode());
+        assertEquals(EvalConfig.DEFAULT_MODEL, run.model());
+        assertEquals(EvalConfig.DEFAULT_JUDGE_MODEL, run.judgeModel());
         assertEquals(1, run.configuration().repetitions());
         assertEquals(false, run.configuration().includeRed());
         assertEquals("ollama", run.configuration().provider());
@@ -103,5 +106,29 @@ class BaselineIoTest {
                 "--output=build/eval-save-guard"
         });
         assertEquals(eval.cli.ExitCode.USAGE, code);
+    }
+
+    @Test
+    void saveBaselineRefusesInfrastructureErrorRun() {
+        Path dest = Path.of("build/eval-save-guard-error/snap.json");
+        EvalConfig config = EvalConfig.resolve(new String[]{
+                "--mode=live",
+                "--judge=false",
+                "--red",
+                "--artifacts=never",
+                "--output=build/eval-save-guard-error",
+                "--save-baseline=" + dest,
+                "--force-save-baseline"
+        });
+        eval.provider.ModelRunner runner = (system, user, model) -> {
+            throw new eval.provider.EvalInfrastructureException(
+                    eval.provider.EvalInfrastructureException.MODEL_UNAVAILABLE, "ollama down");
+        };
+        EvalRun run = new eval.execution.EvalExecutor(config, runner).execute();
+        assertEquals(8, run.casesError());
+        IllegalStateException ex = org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalStateException.class, () -> ArtifactWriter.write(run, config));
+        assertTrue(ex.getMessage().contains("infrastructure errors"));
+        assertTrue(!java.nio.file.Files.isRegularFile(dest));
     }
 }
